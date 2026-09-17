@@ -38,6 +38,103 @@ module ID_stage(
     wire [31:0] ds_inst;
     wire [31:0] ds_pc;
 
+    // 指令中的各字段
+    wire [ 5:0] op_31_26;
+    wire [ 3:0] op_25_22;
+    wire [ 1:0] op_21_20;
+    wire [ 4:0] op_19_15;
+
+    wire [ 4:0] rd;
+    wire [ 4:0] rj;
+    wire [ 4:0] rk;
+
+    wire [11:0] i12;
+    wire [19:0] i20;
+    wire [15:0] i16;
+    wire [25:0] i26;
+
+    // 译码器输出
+    wire [63:0] op_31_26_d;
+    wire [15:0] op_25_22_d;
+    wire [ 3:0] op_21_20_d;
+    wire [31:0] op_19_15_d;
+
+    // 当前指令类型
+    wire inst_add_w;
+    wire inst_sub_w;
+    wire inst_slt;
+    wire inst_sltu;
+    wire inst_nor;
+    wire inst_and;
+    wire inst_or;
+    wire inst_xor;
+    wire inst_slli_w;
+    wire inst_srli_w;
+    wire inst_srai_w;
+    wire inst_addi_w;
+    wire inst_ld_w;
+    wire inst_st_w;
+    wire inst_jirl;
+    wire inst_b;
+    wire inst_bl;
+    wire inst_beq;
+    wire inst_bne;
+    wire inst_lu12i_w;
+
+    // ALU控制信号
+    wire [11:0] alu_op;
+
+    // 立即数类型
+    wire need_ui5;
+    wire need_si12;
+    wire need_si16;
+    wire need_si20;
+    wire need_si26;
+
+    // 操作数选择
+    wire src1_is_pc;
+    wire src2_is_imm;
+    wire src2_is_4;
+    wire src_reg_is_rd;
+
+    // 访存和写回控制
+    wire res_from_mem;
+    wire gr_we;
+    wire mem_we;
+    wire dst_is_r1;
+
+    // 目的寄存器
+    wire [4:0] dest;
+
+    // 寄存器堆读端口
+    wire [ 4:0] rf_raddr1;
+    wire [31:0] rf_rdata1;
+    wire [ 4:0] rf_raddr2;
+    wire [31:0] rf_rdata2;
+
+    // 寄存器堆写端口，来自WB级
+    wire        rf_we;
+    wire [ 4:0] rf_waddr;
+    wire [31:0] rf_wdata;
+
+    // ID级读出的两个源操作数
+    wire [31:0] rj_value;
+    wire [31:0] rkd_value;
+
+    // 立即数和分支偏移
+    wire [31:0] imm;
+    wire [31:0] br_offs;
+    wire [31:0] jirl_offs;
+
+    // 分支判断
+    wire        rj_eq_rkd;
+    wire        br_taken;
+    wire [31:0] br_target;
+
+    // 送往EXE的两个ALU操作数
+    wire [31:0] alu_src1;
+    wire [31:0] alu_src2;
+
     // 从IF传来的64位总线中拆出指令和PC
     assign {ds_inst, ds_pc} = fs_to_ds_bus_r;
 
@@ -193,89 +290,20 @@ module ID_stage(
         end
     end
 
-    /*
-     * 当前只是ID级外壳，具体译码逻辑下一步加入。
-     * 暂时将输出置零，避免输出悬空。
-     */
-    assign ds_to_es_bus = {`DS_TO_ES_BUS_WD{1'b0}};
-    assign br_bus       = {`BR_BUS_WD{1'b0}};
-
-    wire [31:0] ds_inst;
-    wire [31:0] ds_pc;
-
-    // 指令中的各字段
-    wire [ 5:0] op_31_26;
-    wire [ 3:0] op_25_22;
-    wire [ 1:0] op_21_20;
-    wire [ 4:0] op_19_15;
-
-    wire [ 4:0] rd;
-    wire [ 4:0] rj;
-    wire [ 4:0] rk;
-
-    wire [11:0] i12;
-    wire [19:0] i20;
-    wire [15:0] i16;
-    wire [25:0] i26;
-
-    // 译码器输出
-    wire [63:0] op_31_26_d;
-    wire [15:0] op_25_22_d;
-    wire [ 3:0] op_21_20_d;
-    wire [31:0] op_19_15_d;
-
-    // 当前指令类型
-    wire inst_add_w;
-    wire inst_sub_w;
-    wire inst_slt;
-    wire inst_sltu;
-    wire inst_nor;
-    wire inst_and;
-    wire inst_or;
-    wire inst_xor;
-    wire inst_slli_w;
-    wire inst_srli_w;
-    wire inst_srai_w;
-    wire inst_addi_w;
-    wire inst_ld_w;
-    wire inst_st_w;
-    wire inst_jirl;
-    wire inst_b;
-    wire inst_bl;
-    wire inst_beq;
-    wire inst_bne;
-    wire inst_lu12i_w;
-
-
-    // ALU控制信号
-    wire [11:0] alu_op;
-
-    // 立即数类型
-    wire need_ui5;
-    wire need_si12;
-    wire need_si16;
-    wire need_si20;
-    wire need_si26;
-
-    // 操作数选择
-    wire src1_is_pc;
-    wire src2_is_imm;
-    wire src2_is_4;
-    wire src_reg_is_rd;
-
-    // 访存和写回控制
-    wire res_from_mem;
-    wire gr_we;
-    wire mem_we;
-    wire dst_is_r1;
-
-    // 目的寄存器
-    wire [4:0] dest;
-
-    // 立即数和分支偏移
-    wire [31:0] imm;
-    wire [31:0] br_offs;
-    wire [31:0] jirl_offs;
+    // 将ID级控制信息和操作数打包送往EXE级
+    assign ds_to_es_bus = {
+        alu_op,         // 12位
+        gr_we,          // 1位
+        mem_we,         // 1位
+        dest,           // 5位
+        alu_src1,       // 32位
+        alu_src2,       // 32位
+        rkd_value,      // 32位
+        ds_pc,          // 32位
+        res_from_mem    // 1位
+    };
+    
+    assign br_bus = {br_taken, br_target};
 
     // ALU操作类型
     assign alu_op[0] =
@@ -379,5 +407,53 @@ module ID_stage(
 
     // bl写r1，其余写rd
     assign dest = dst_is_r1 ? 5'd1 : rd;
+
+    // WB级送回：写使能、目标寄存器号、写回数据
+    assign {rf_we, rf_waddr, rf_wdata} = ws_to_rf_bus;
+
+    // 第一个源寄存器始终由rj字段指定
+    assign rf_raddr1 = rj;
+
+    // 大多数指令使用rk；beq、bne和st.w使用rd字段
+    assign rf_raddr2 = src_reg_is_rd ? rd : rk;
+
+    regfile u_regfile(
+    .clk    (clk),
+    .raddr1 (rf_raddr1),
+    .rdata1 (rf_rdata1),
+    .raddr2 (rf_raddr2),
+    .rdata2 (rf_rdata2),
+    .we     (rf_we),
+    .waddr  (rf_waddr),
+    .wdata  (rf_wdata)
+);
+
+    assign rj_value  = rf_rdata1;
+    assign rkd_value = rf_rdata2;
+
+    // 判断两个源寄存器的值是否相等
+    assign rj_eq_rkd = (rj_value == rkd_value);
+
+    assign br_taken =
+       (
+           (inst_beq &&  rj_eq_rkd) ||
+           (inst_bne && !rj_eq_rkd) ||
+           inst_jirl ||
+           inst_bl   ||
+           inst_b
+       ) && ds_valid;
+
+    //两类目标地址的计算方法
+    assign br_target =
+       (inst_beq || inst_bne || inst_bl || inst_b)
+       ? ds_pc + br_offs
+       : rj_value + jirl_offs;
+
+    //选择两个操作数
+    assign alu_src1 =
+       src1_is_pc ? ds_pc : rj_value;
+
+    assign alu_src2 =
+       src2_is_imm ? imm : rkd_value;
 
 endmodule
