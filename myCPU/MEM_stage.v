@@ -18,6 +18,9 @@ module MEM_stage(
     output wire                         ms_to_ws_valid,
     output wire [`MS_TO_WS_BUS_WD-1:0]  ms_to_ws_bus,
 
+    // 送回ID级，用于数据相关判断
+    output wire [`MS_TO_DS_BUS_WD-1:0] ms_to_ds_bus,
+
     // 数据RAM返回值
     input  wire [31:0]                  data_sram_rdata
 );
@@ -96,6 +99,13 @@ module MEM_stage(
         ms_dest,         // 5位
         ms_final_result, // 32位
         ms_pc            // 32位
+    };
+
+    // 向ID级报告MEM中尚未写回的目的寄存器
+    assign ms_to_ds_bus = {
+        ms_valid,
+        ms_gr_we,
+        ms_dest
     };
 
 endmodule

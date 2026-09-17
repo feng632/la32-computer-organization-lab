@@ -22,7 +22,12 @@ module ID_stage(
     output wire [`BR_BUS_WD-1:0]        br_bus,
 
     // 来自WB级的寄存器写回信息
-    input  wire [`WS_TO_RF_BUS_WD-1:0]  ws_to_rf_bus
+    input  wire [`WS_TO_RF_BUS_WD-1:0]  ws_to_rf_bus,
+
+    // 后三级的待写寄存器信息，用于检测数据相关
+    input wire [`ES_TO_DS_BUS_WD-1:0] es_to_ds_bus,
+    input wire [`MS_TO_DS_BUS_WD-1:0] ms_to_ds_bus,
+    input wire [`WS_TO_DS_BUS_WD-1:0] ws_to_ds_bus
 );
 
     // ID级的有效位
@@ -134,6 +139,50 @@ module ID_stage(
     // 送往EXE的两个ALU操作数
     wire [31:0] alu_src1;
     wire [31:0] alu_src2;
+
+    // EXE级待写寄存器信息
+    wire       es_valid_for_ds;
+    wire       es_gr_we_for_ds;
+    wire [4:0] es_dest_for_ds;
+
+    // MEM级待写寄存器信息
+    wire       ms_valid_for_ds;
+    wire       ms_gr_we_for_ds;
+    wire [4:0] ms_dest_for_ds;
+
+    // WB级待写寄存器信息
+    wire       ws_valid_for_ds;
+    wire       ws_gr_we_for_ds;
+    wire [4:0] ws_dest_for_ds;
+
+    // 当前ID指令是否真正使用两个寄存器读端口
+    wire src1_is_reg;
+    wire src2_is_reg;
+
+    // ID与EXE、MEM、WB三级之间的写后读相关
+    wire es_raw_hazard;
+    wire ms_raw_hazard;
+    wire ws_raw_hazard;
+    wire raw_hazard;
+
+    // 拆出后三级的有效位、写使能和目的寄存器号
+    assign {
+        es_valid_for_ds,
+        es_gr_we_for_ds,
+        es_dest_for_ds
+    } = es_to_ds_bus;
+
+    assign {
+        ms_valid_for_ds,
+        ms_gr_we_for_ds,
+        ms_dest_for_ds
+    } = ms_to_ds_bus;
+
+    assign {
+        ws_valid_for_ds,
+        ws_gr_we_for_ds,
+        ws_dest_for_ds
+    } = ws_to_ds_bus;
 
     // 从IF传来的64位总线中拆出指令和PC
     assign {ds_inst, ds_pc} = fs_to_ds_bus_r;
@@ -261,8 +310,8 @@ module ID_stage(
         op_31_26_d[6'h05] &&
         !ds_inst[25];
 
-    // 第一章暂不考虑冲突，ID级总能在一个周期内完成
-    assign ds_ready_go = 1'b1;
+    // 存在写后读相关时，ID保持当前指令并等待旧值写回
+    assign ds_ready_go = !raw_hazard;
 
     // ID为空，或者当前指令可以送给EXE时，允许IF送入新指令
     assign ds_allowin =
@@ -417,6 +466,72 @@ module ID_stage(
     // 大多数指令使用rk；beq、bne和st.w使用rd字段
     assign rf_raddr2 = src_reg_is_rd ? rd : rk;
 
+    // 使用rj作为源操作数的指令
+    assign src1_is_reg =
+        inst_add_w   |
+        inst_sub_w   |
+        inst_slt     |
+        inst_sltu    |
+        inst_nor     |
+        inst_and     |
+        inst_or      |
+        inst_xor     |
+        inst_slli_w  |
+        inst_srli_w  |
+        inst_srai_w  |
+        inst_addi_w  |
+        inst_ld_w    |
+        inst_st_w    |
+        inst_jirl    |
+        inst_beq     |
+        inst_bne;
+
+    // 使用第二个寄存器操作数的指令
+    assign src2_is_reg =
+        inst_add_w |
+        inst_sub_w |
+        inst_slt   |
+        inst_sltu  |
+        inst_nor   |
+        inst_and   |
+        inst_or    |
+        inst_xor   |
+        inst_st_w  |
+        inst_beq   |
+        inst_bne;
+
+    // 后级存在尚未写回、且ID当前需要读取的非零目的寄存器时发生RAW相关
+    assign es_raw_hazard =
+        es_valid_for_ds &&
+        es_gr_we_for_ds &&
+        (es_dest_for_ds != 5'd0) &&
+        (
+            (src1_is_reg && (rf_raddr1 == es_dest_for_ds)) ||
+            (src2_is_reg && (rf_raddr2 == es_dest_for_ds))
+        );
+
+    assign ms_raw_hazard =
+        ms_valid_for_ds &&
+        ms_gr_we_for_ds &&
+        (ms_dest_for_ds != 5'd0) &&
+        (
+            (src1_is_reg && (rf_raddr1 == ms_dest_for_ds)) ||
+            (src2_is_reg && (rf_raddr2 == ms_dest_for_ds))
+        );
+
+    assign ws_raw_hazard =
+        ws_valid_for_ds &&
+        ws_gr_we_for_ds &&
+        (ws_dest_for_ds != 5'd0) &&
+        (
+            (src1_is_reg && (rf_raddr1 == ws_dest_for_ds)) ||
+            (src2_is_reg && (rf_raddr2 == ws_dest_for_ds))
+        );
+
+    assign raw_hazard =
+        ds_valid &&
+        (es_raw_hazard || ms_raw_hazard || ws_raw_hazard);
+
     regfile u_regfile(
     .clk    (clk),
     .raddr1 (rf_raddr1),
@@ -441,7 +556,7 @@ module ID_stage(
            inst_jirl ||
            inst_bl   ||
            inst_b
-       ) && ds_valid;
+       ) && ds_valid && ds_ready_go;
 
     //两类目标地址的计算方法
     assign br_target =

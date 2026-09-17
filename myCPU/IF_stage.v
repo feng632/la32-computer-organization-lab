@@ -54,9 +54,10 @@ module IF_stage(
            !fs_valid ||
            (fs_ready_go && ds_allowin);
 
-    // IF有一条有效指令，并且取指完成
+    // IF有一条有效指令并且取指完成时送往ID；
+    // 若ID中的分支跳转成立，当前IF指令属于错误路径，必须取消
     assign fs_to_ds_valid =
-           fs_valid && fs_ready_go;
+           fs_valid && fs_ready_go && !br_taken;
 
     // 复位结束后，允许开始取指
     assign to_fs_valid = !reset;

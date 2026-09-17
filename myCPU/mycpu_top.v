@@ -66,6 +66,11 @@ module mycpu_top(
      */
     wire [`WS_TO_RF_BUS_WD-1:0] ws_to_rf_bus;
 
+    // EXE、MEM、WB送回ID的冲突检测信息
+    wire [`ES_TO_DS_BUS_WD-1:0] es_to_ds_bus;
+    wire [`MS_TO_DS_BUS_WD-1:0] ms_to_ds_bus;
+    wire [`WS_TO_DS_BUS_WD-1:0] ws_to_ds_bus;
+
     // IF：取指
     IF_stage u_if_stage(
         .clk             (clk),
@@ -99,7 +104,11 @@ module mycpu_top(
         .ds_to_es_bus    (ds_to_es_bus),
 
         .br_bus          (br_bus),
-        .ws_to_rf_bus    (ws_to_rf_bus)
+        .ws_to_rf_bus    (ws_to_rf_bus),
+
+        .es_to_ds_bus    (es_to_ds_bus),
+        .ms_to_ds_bus    (ms_to_ds_bus),
+        .ws_to_ds_bus    (ws_to_ds_bus)
     );
 
     // EXE：ALU运算和数据RAM请求
@@ -119,7 +128,9 @@ module mycpu_top(
         .data_sram_en    (data_sram_en),
         .data_sram_we    (data_sram_we),
         .data_sram_addr  (data_sram_addr),
-        .data_sram_wdata (data_sram_wdata)
+        .data_sram_wdata (data_sram_wdata),
+
+        .es_to_ds_bus    (es_to_ds_bus)
     );
 
     // MEM：选择RAM返回值或ALU结果
@@ -136,7 +147,9 @@ module mycpu_top(
         .ms_to_ws_valid  (ms_to_ws_valid),
         .ms_to_ws_bus    (ms_to_ws_bus),
 
-        .data_sram_rdata (data_sram_rdata)
+        .data_sram_rdata (data_sram_rdata),
+
+        .ms_to_ds_bus    (ms_to_ds_bus)
     );
 
     // WB：寄存器写回和Trace输出
@@ -154,7 +167,9 @@ module mycpu_top(
         .debug_wb_pc      (debug_wb_pc),
         .debug_wb_rf_we   (debug_wb_rf_we),
         .debug_wb_rf_wnum (debug_wb_rf_wnum),
-        .debug_wb_rf_wdata(debug_wb_rf_wdata)
+        .debug_wb_rf_wdata(debug_wb_rf_wdata),
+
+        .ws_to_ds_bus    (ws_to_ds_bus)
     );
 
 endmodule

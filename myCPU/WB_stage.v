@@ -14,6 +14,9 @@ module WB_stage(
     // 送回ID级寄存器堆
     output wire [`WS_TO_RF_BUS_WD-1:0]  ws_to_rf_bus,
 
+    // 送回ID级，用于数据相关判断
+    output wire [`WS_TO_DS_BUS_WD-1:0] ws_to_ds_bus,
+
     // Trace调试接口
     output wire [31:0]                  debug_wb_pc,
     output wire [ 3:0]                  debug_wb_rf_we,
@@ -91,5 +94,12 @@ module WB_stage(
     assign debug_wb_rf_we    = {4{rf_we}};
     assign debug_wb_rf_wnum  = ws_dest;
     assign debug_wb_rf_wdata = ws_final_result;
+
+    // 向ID级报告WB中正在写回的目的寄存器
+    assign ws_to_ds_bus = {
+        ws_valid,
+        ws_gr_we,
+        ws_dest
+    };
 
 endmodule

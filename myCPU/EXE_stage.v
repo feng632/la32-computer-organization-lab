@@ -18,6 +18,9 @@ module EXE_stage(
     output wire                         es_to_ms_valid,
     output wire [`ES_TO_MS_BUS_WD-1:0]  es_to_ms_bus,
 
+    // 送回ID级，用于数据相关判断
+    output wire [`ES_TO_DS_BUS_WD-1:0] es_to_ds_bus,
+
     // 数据RAM接口
     output wire                         data_sram_en,
     output wire [3:0]                   data_sram_we,
@@ -118,6 +121,13 @@ module EXE_stage(
         es_alu_result,   // 32位
         es_rkd_value,    // 32位
         es_pc            // 32位
+    };
+
+    // 向ID级报告EXE中尚未写回的目的寄存器
+    assign es_to_ds_bus = {
+        es_valid,
+        es_gr_we,
+        es_dest
     };
 
 endmodule
