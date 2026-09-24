@@ -140,48 +140,61 @@ module ID_stage(
     wire [31:0] alu_src1;
     wire [31:0] alu_src2;
 
-    // EXE级待写寄存器信息
-    wire       es_valid_for_ds;
-    wire       es_gr_we_for_ds;
-    wire [4:0] es_dest_for_ds;
+    // EXE级反馈给ID的信息
+    wire        es_valid_for_ds;
+    wire        es_res_from_mem_for_ds;
+    wire        es_gr_we_for_ds;
+    wire [ 4:0] es_dest_for_ds;
+    wire [31:0] es_result_for_ds;
 
-    // MEM级待写寄存器信息
-    wire       ms_valid_for_ds;
-    wire       ms_gr_we_for_ds;
-    wire [4:0] ms_dest_for_ds;
+    // MEM级反馈给ID的信息
+    wire        ms_valid_for_ds;
+    wire        ms_gr_we_for_ds;
+    wire [ 4:0] ms_dest_for_ds;
+    wire [31:0] ms_result_for_ds;
 
-    // WB级待写寄存器信息
-    wire       ws_valid_for_ds;
-    wire       ws_gr_we_for_ds;
-    wire [4:0] ws_dest_for_ds;
+    // WB级反馈给ID的信息
+    wire        ws_valid_for_ds;
+    wire        ws_gr_we_for_ds;
+    wire [ 4:0] ws_dest_for_ds;
+    wire [31:0] ws_result_for_ds;
 
     // 当前ID指令是否真正使用两个寄存器读端口
     wire src1_is_reg;
     wire src2_is_reg;
 
-    // ID与EXE、MEM、WB三级之间的写后读相关
-    wire es_raw_hazard;
-    wire ms_raw_hazard;
-    wire ws_raw_hazard;
-    wire raw_hazard;
+    // 两个源寄存器与EXE、MEM、WB目的寄存器的匹配结果
+    wire es_src1_match;
+    wire es_src2_match;
+    wire ms_src1_match;
+    wire ms_src2_match;
+    wire ws_src1_match;
+    wire ws_src2_match;
 
-    // 拆出后三级的有效位、写使能和目的寄存器号
+    // EXE中的加载指令与ID之间的数据相关
+    wire load_use_hazard;
+
+    // 拆出EXE、MEM、WB反馈给ID的信息
     assign {
         es_valid_for_ds,
+        es_res_from_mem_for_ds,
         es_gr_we_for_ds,
-        es_dest_for_ds
+        es_dest_for_ds,
+        es_result_for_ds
     } = es_to_ds_bus;
 
     assign {
         ms_valid_for_ds,
         ms_gr_we_for_ds,
-        ms_dest_for_ds
+        ms_dest_for_ds,
+        ms_result_for_ds
     } = ms_to_ds_bus;
 
     assign {
         ws_valid_for_ds,
         ws_gr_we_for_ds,
-        ws_dest_for_ds
+        ws_dest_for_ds,
+        ws_result_for_ds
     } = ws_to_ds_bus;
 
     // 从IF传来的64位总线中拆出指令和PC
@@ -310,8 +323,8 @@ module ID_stage(
         op_31_26_d[6'h05] &&
         !ds_inst[25];
 
-    // 存在写后读相关时，ID保持当前指令并等待旧值写回
-    assign ds_ready_go = !raw_hazard;
+    // 只有EXE中的加载结果尚未返回时，ID才阻塞
+    assign ds_ready_go = !load_use_hazard;
 
     // ID为空，或者当前指令可以送给EXE时，允许IF送入新指令
     assign ds_allowin =
@@ -500,37 +513,61 @@ module ID_stage(
         inst_beq   |
         inst_bne;
 
-    // 后级存在尚未写回、且ID当前需要读取的非零目的寄存器时发生RAW相关
-    assign es_raw_hazard =
+
+    // 源寄存器1与后三级目的寄存器匹配
+    assign es_src1_match =
+        ds_valid &&
+        src1_is_reg &&
         es_valid_for_ds &&
         es_gr_we_for_ds &&
         (es_dest_for_ds != 5'd0) &&
-        (
-            (src1_is_reg && (rf_raddr1 == es_dest_for_ds)) ||
-            (src2_is_reg && (rf_raddr2 == es_dest_for_ds))
-        );
+        (rf_raddr1 == es_dest_for_ds);
 
-    assign ms_raw_hazard =
+    assign ms_src1_match =
+        ds_valid &&
+        src1_is_reg &&
         ms_valid_for_ds &&
         ms_gr_we_for_ds &&
         (ms_dest_for_ds != 5'd0) &&
-        (
-            (src1_is_reg && (rf_raddr1 == ms_dest_for_ds)) ||
-            (src2_is_reg && (rf_raddr2 == ms_dest_for_ds))
-        );
+        (rf_raddr1 == ms_dest_for_ds);
 
-    assign ws_raw_hazard =
+    assign ws_src1_match =
+        ds_valid &&
+        src1_is_reg &&
         ws_valid_for_ds &&
         ws_gr_we_for_ds &&
         (ws_dest_for_ds != 5'd0) &&
-        (
-            (src1_is_reg && (rf_raddr1 == ws_dest_for_ds)) ||
-            (src2_is_reg && (rf_raddr2 == ws_dest_for_ds))
-        );
+        (rf_raddr1 == ws_dest_for_ds);
 
-    assign raw_hazard =
+    // 源寄存器2与后三级目的寄存器匹配
+    assign es_src2_match =
         ds_valid &&
-        (es_raw_hazard || ms_raw_hazard || ws_raw_hazard);
+        src2_is_reg &&
+        es_valid_for_ds &&
+        es_gr_we_for_ds &&
+        (es_dest_for_ds != 5'd0) &&
+        (rf_raddr2 == es_dest_for_ds);
+
+    assign ms_src2_match =
+        ds_valid &&
+        src2_is_reg &&
+        ms_valid_for_ds &&
+        ms_gr_we_for_ds &&
+        (ms_dest_for_ds != 5'd0) &&
+        (rf_raddr2 == ms_dest_for_ds);
+
+    assign ws_src2_match =
+        ds_valid &&
+        src2_is_reg &&
+        ws_valid_for_ds &&
+        ws_gr_we_for_ds &&
+        (ws_dest_for_ds != 5'd0) &&
+        (rf_raddr2 == ws_dest_for_ds);
+
+    // EXE中是加载指令，并且其目的寄存器被ID使用时，需要阻塞一拍
+    assign load_use_hazard =
+        es_res_from_mem_for_ds &&
+        (es_src1_match || es_src2_match);
 
     regfile u_regfile(
     .clk    (clk),
@@ -543,8 +580,21 @@ module ID_stage(
     .wdata  (rf_wdata)
 );
 
-    assign rj_value  = rf_rdata1;
-    assign rkd_value = rf_rdata2;
+    // 为源寄存器1选择最新的数据
+    assign rj_value =
+        es_src1_match ? es_result_for_ds :
+        ms_src1_match ? ms_result_for_ds :
+        ws_src1_match ? ws_result_for_ds :
+                        rf_rdata1;
+
+    // 为源寄存器2选择最新的数据
+    assign rkd_value =
+        es_src2_match ? es_result_for_ds :
+        ms_src2_match ? ms_result_for_ds :
+        ws_src2_match ? ws_result_for_ds :
+                        rf_rdata2;
+
+
 
     // 判断两个源寄存器的值是否相等
     assign rj_eq_rkd = (rj_value == rkd_value);

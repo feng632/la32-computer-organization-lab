@@ -123,11 +123,13 @@ module EXE_stage(
         es_pc            // 32位
     };
 
-    // 向ID级报告EXE中尚未写回的目的寄存器
+   // 向ID级反馈EXE级的目的寄存器和计算结果
     assign es_to_ds_bus = {
-        es_valid,
-        es_gr_we,
-        es_dest
+        es_valid,          // 1位：EXE级是否存在有效指令
+        es_res_from_mem,   // 1位：结果是否需要从内存读取
+        es_gr_we,          // 1位：是否写通用寄存器
+        es_dest,           // 5位：目的寄存器号
+        es_alu_result      // 32位：ALU计算结果
     };
 
 endmodule

@@ -101,11 +101,12 @@ module MEM_stage(
         ms_pc            // 32位
     };
 
-    // 向ID级报告MEM中尚未写回的目的寄存器
+    // 向ID级反馈MEM级的目的寄存器和最终结果
     assign ms_to_ds_bus = {
-        ms_valid,
-        ms_gr_we,
-        ms_dest
+        ms_valid,          // 1位：MEM级是否存在有效指令
+        ms_gr_we,          // 1位：是否写通用寄存器
+        ms_dest,           // 5位：目的寄存器号
+        ms_final_result    // 32位：最终结果
     };
 
 endmodule

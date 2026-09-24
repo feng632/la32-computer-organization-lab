@@ -19,8 +19,7 @@
 // WB -> 寄存器堆：写使能、目的寄存器、写回数据
 `define WS_TO_RF_BUS_WD 38
 
-`define ES_TO_DS_BUS_WD 7
-`define MS_TO_DS_BUS_WD 7
-`define WS_TO_DS_BUS_WD 7
-
+`define ES_TO_DS_BUS_WD 40
+`define MS_TO_DS_BUS_WD 39
+`define WS_TO_DS_BUS_WD 39
 `endif

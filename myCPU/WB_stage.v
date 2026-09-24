@@ -95,11 +95,12 @@ module WB_stage(
     assign debug_wb_rf_wnum  = ws_dest;
     assign debug_wb_rf_wdata = ws_final_result;
 
-    // 向ID级报告WB中正在写回的目的寄存器
+   // 向ID级反馈WB级的目的寄存器和最终结果
     assign ws_to_ds_bus = {
-        ws_valid,
-        ws_gr_we,
-        ws_dest
+        ws_valid,          // 1位：WB级是否存在有效指令
+        ws_gr_we,          // 1位：是否写通用寄存器
+        ws_dest,           // 5位：目的寄存器号
+        ws_final_result    // 32位：最终写回结果
     };
 
 endmodule
