@@ -1,0 +1,28 @@
+# Vivado regenerates the project from create_project.tcl.
+soc_verify/**/run_vivado/project/*
+!soc_verify/soc_bram/run_vivado/project/loongson.xpr
+soc_verify/**/run_vivado/project-first-attempt/
+soc_verify/**/rtl/xilinx_ip/**
+!soc_verify/**/rtl/xilinx_ip/**/
+!soc_verify/**/rtl/xilinx_ip/**/*.xci
+.Xil/
+*.jou
+*.log
+!docs/verification/*.log
+*.wdb
+*.vcd
+*.dcp
+*.bit
+*.ltx
+*.str
+*.zip
+# Assembly build intermediates; keep the bundled simulation inputs.
+*.o
+*.a
+func/obj/convert
+func/obj/main.*
+func/obj/start.*
+func/obj/init.*
+func/obj/rom.vlog
+Thumbs.db
+.DS_Store
