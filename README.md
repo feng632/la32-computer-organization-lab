@@ -166,7 +166,7 @@ soc_verify/soc_bram/run_vivado/project/loongson.sim/sim_1/behav/xsim/simulate.lo
 
 ## 复习笔记
 
-飞书在线复习笔记链接待补充。
+[飞书在线复习笔记](https://tcnlttaap31i.feishu.cn/wiki/EY6EwDhuzi6NIYkeJNIcsZaFnSh?from=from_copylink)
 
 仓库同时保存 [ex1～ex3 验收说明](docs/实验一_ex1-ex3验收说明.md)，其中的代码行号和仿真时间对应文中注明的历史版本。
 

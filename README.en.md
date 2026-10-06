@@ -146,7 +146,7 @@ For errors, failures, missing files, or a run that never finishes, check the CPU
 
 ## Study notes
 
-The link to the online Feishu study notes will be added here.
+[Online study notes on Feishu (Chinese)](https://tcnlttaap31i.feishu.cn/wiki/EY6EwDhuzi6NIYkeJNIcsZaFnSh?from=from_copylink)
 
 The repository also includes [Chinese ex1–ex3 assessment notes](docs/实验一_ex1-ex3验收说明.md). Their line numbers and simulation times refer to the historical versions specified in that document.
 
