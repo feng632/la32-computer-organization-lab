@@ -86,6 +86,10 @@ module ID_stage(
     wire inst_andi;
     wire inst_xori;
     wire inst_pcaddu12i;
+    wire inst_blt;
+    wire inst_bge;
+    wire inst_bltu;
+    wire inst_bgeu;
 
     wire inst_ld_w;
     wire inst_st_w;
@@ -144,6 +148,8 @@ module ID_stage(
 
     // 分支判断
     wire        rj_eq_rkd;
+    wire        rj_lt_rkd;
+    wire        rj_ltu_rkd;
     wire        br_taken;
     wire [31:0] br_target;
 
@@ -300,6 +306,18 @@ module ID_stage(
     assign inst_pcaddu12i =
         op_31_26_d[6'h07] &&
         !ds_inst[25];
+
+    // blt译码
+    assign inst_blt = op_31_26_d[6'h18];
+
+    // bge译码
+    assign inst_bge = op_31_26_d[6'h19];
+
+    // bltu译码
+    assign inst_bltu = op_31_26_d[6'h1a];
+
+    // bgeu译码
+    assign inst_bgeu = op_31_26_d[6'h1b];
 
     assign inst_sub_w =
         op_31_26_d[6'h00] &&
@@ -485,7 +503,11 @@ module ID_stage(
     assign need_si16 =
         inst_jirl |
         inst_beq  |
-        inst_bne;
+        inst_bne  |
+        inst_blt  |
+        inst_bge  |
+        inst_bltu |
+        inst_bgeu;
 
     assign need_si20 =
         inst_lu12i_w |
@@ -518,6 +540,10 @@ module ID_stage(
     assign src_reg_is_rd =
         inst_beq |
         inst_bne |
+        inst_blt |
+        inst_bge |
+        inst_bltu |
+        inst_bgeu |
         inst_st_w;
 
     // jirl、bl和pcaddu12i的ALU第一个操作数是PC
@@ -555,6 +581,10 @@ module ID_stage(
         !inst_st_w &&
         !inst_beq  &&
         !inst_bne  &&
+        !inst_blt  &&
+        !inst_bge  &&
+        !inst_bltu &&
+        !inst_bgeu &&
         !inst_b;
 
     // st.w需要写数据RAM
@@ -598,7 +628,11 @@ module ID_stage(
         inst_st_w    |
         inst_jirl    |
         inst_beq     |
-        inst_bne;
+        inst_bne     |
+        inst_blt     |
+        inst_bltu    |
+        inst_bge     |
+        inst_bgeu;
 
     // 使用第二个寄存器操作数的指令
     assign src2_is_reg =
@@ -615,7 +649,11 @@ module ID_stage(
         inst_xor   |
         inst_st_w  |
         inst_beq   |
-        inst_bne;
+        inst_bne   |
+        inst_blt   |
+        inst_bge   |
+        inst_bltu  |
+        inst_bgeu;
 
 
     // 源寄存器1与后三级目的寄存器匹配
@@ -703,20 +741,30 @@ module ID_stage(
     // 判断两个源寄存器的值是否相等
     assign rj_eq_rkd = (rj_value == rkd_value);
 
+    assign rj_lt_rkd =
+       ($signed(rj_value) < $signed(rkd_value));
+
+    assign rj_ltu_rkd =
+        ($unsigned(rj_value) < $unsigned(rkd_value));
+
     assign br_taken =
-       (
-           (inst_beq &&  rj_eq_rkd) ||
-           (inst_bne && !rj_eq_rkd) ||
-           inst_jirl ||
-           inst_bl   ||
-           inst_b
-       ) && ds_valid && ds_ready_go;
+        (
+            (inst_beq &&  rj_eq_rkd) ||
+            (inst_bne && !rj_eq_rkd) ||
+            (inst_blt &&  rj_lt_rkd) ||
+            (inst_bge && !rj_lt_rkd) ||
+            (inst_bltu && rj_ltu_rkd) ||
+            (inst_bgeu && !rj_ltu_rkd) ||
+            inst_jirl ||
+            inst_bl   ||
+            inst_b
+        ) && ds_valid && ds_ready_go;
 
     //两类目标地址的计算方法
     assign br_target =
-       (inst_beq || inst_bne || inst_bl || inst_b)
-       ? ds_pc + br_offs
-       : rj_value + jirl_offs;
+        (inst_beq || inst_bne || inst_blt || inst_bge || inst_bltu || inst_bgeu || inst_bl || inst_b)
+        ? ds_pc + br_offs
+        : rj_value + jirl_offs;
 
     //选择两个操作数
     assign alu_src1 =
