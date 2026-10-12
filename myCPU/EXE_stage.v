@@ -40,6 +40,14 @@ module EXE_stage(
     wire        es_gr_we;
     wire        es_mem_we;
     wire [ 4:0] es_dest;
+    //ex6
+    wire es_store_is_byte;
+    wire es_store_is_half;
+    wire es_load_is_byte;
+    wire es_load_unsigned;
+    wire es_load_is_half;
+
+
     wire [31:0] es_alu_src1;
     wire [31:0] es_alu_src2;
     wire [31:0] es_rkd_value;
@@ -49,18 +57,33 @@ module EXE_stage(
     // ALU计算结果
     wire [31:0] es_alu_result;
 
+
+    wire [3:0] es_store_we;
+
     // ID打包的顺序必须和这里的拆包顺序完全一致
     assign {
         es_alu_op,
         es_gr_we,
         es_mem_we,
+        es_store_is_byte,
+        es_store_is_half,
         es_dest,
         es_alu_src1,
         es_alu_src2,
         es_rkd_value,
         es_pc,
-        es_res_from_mem
+        es_res_from_mem,
+        es_load_is_byte,
+        es_load_unsigned,
+        es_load_is_half
     } = ds_to_es_bus_r;
+
+    assign es_store_we =
+        es_store_is_byte
+        ? (4'b0001 << es_alu_result[1:0])
+        : es_store_is_half
+        ? (es_alu_result[1] ? 4'b1100 : 4'b0011)
+        : 4'b1111;
 
     // 第一章暂时没有多周期执行操作
     assign es_ready_go = 1'b1;
@@ -107,14 +130,24 @@ module EXE_stage(
            es_valid && es_ready_go && ms_allowin;
 
     assign data_sram_we =
-           {4{es_mem_we && es_valid && ms_allowin}};
+           (es_mem_we && es_valid && ms_allowin)
+            ? es_store_we
+            : 4'b0000;
 
     assign data_sram_addr  = es_alu_result;
-    assign data_sram_wdata = es_rkd_value;
+    assign data_sram_wdata =
+        es_store_is_byte
+        ? {4{es_rkd_value[7:0]}}
+        : es_store_is_half
+        ? {2{es_rkd_value[15:0]}}
+        : es_rkd_value;
 
     // 将执行结果和后续需要的控制信息送给MEM
     assign es_to_ms_bus = {
         es_res_from_mem, // 1位
+        es_load_is_byte,
+        es_load_unsigned,
+        es_load_is_half,
         es_gr_we,        // 1位
         es_mem_we,       // 1位
         es_dest,         // 5位

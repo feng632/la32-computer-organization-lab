@@ -90,6 +90,15 @@ module ID_stage(
     wire inst_bge;
     wire inst_bltu;
     wire inst_bgeu;
+    //ex6
+    wire inst_st_b;
+    wire inst_st_h;
+    wire inst_ld_b;
+    wire inst_ld_bu;
+    wire load_unsigned;
+    wire inst_ld_h;
+    wire load_is_half;
+    wire inst_ld_hu;
 
     wire inst_ld_w;
     wire inst_st_w;
@@ -122,6 +131,10 @@ module ID_stage(
     wire gr_we;
     wire mem_we;
     wire dst_is_r1;
+
+    wire store_is_byte;
+    wire store_is_half;
+    wire load_is_byte;
 
     // 目的寄存器
     wire [4:0] dest;
@@ -319,6 +332,36 @@ module ID_stage(
     // bgeu译码
     assign inst_bgeu = op_31_26_d[6'h1b];
 
+    // st.b译码
+    assign inst_st_b =
+        op_31_26_d[6'h0a] &&
+        op_25_22_d[4'h4];
+
+    // st.h译码
+    assign inst_st_h =
+        op_31_26_d[6'h0a] &&
+        op_25_22_d[4'h5];
+
+    // ld.b译码
+    assign inst_ld_b =
+        op_31_26_d[6'h0a] &&
+        op_25_22_d[4'h0];
+
+    // ld.bu译码
+    assign inst_ld_bu =
+        op_31_26_d[6'h0a] &&
+        op_25_22_d[4'h8];
+
+    // ld.h译码
+    assign inst_ld_h =
+        op_31_26_d[6'h0a] &&
+        op_25_22_d[4'h1];
+
+    // ld.hu译码
+    assign inst_ld_hu =
+        op_31_26_d[6'h0a] &&
+        op_25_22_d[4'h9];
+
     assign inst_sub_w =
         op_31_26_d[6'h00] &&
         op_25_22_d[4'h0]  &&
@@ -435,12 +478,18 @@ module ID_stage(
         alu_op,         // 12位
         gr_we,          // 1位
         mem_we,         // 1位
+        store_is_byte,  // 1位
+        store_is_half,  // 1位
         dest,           // 5位
         alu_src1,       // 32位
         alu_src2,       // 32位
         rkd_value,      // 32位
         ds_pc,          // 32位
-        res_from_mem    // 1位
+        res_from_mem,    // 1位
+        load_is_byte,     // 1位
+        load_unsigned,     // 1位
+        load_is_half
+
     };
     
     assign br_bus = {br_taken, br_target};
@@ -453,7 +502,14 @@ module ID_stage(
         inst_st_w       |
         inst_pcaddu12i  |
         inst_jirl       |
-        inst_bl;
+        inst_bl         |
+        inst_st_b       |
+        inst_st_h       |
+        inst_ld_b       |
+        inst_ld_bu      |
+        inst_ld_h       |
+        inst_ld_hu;
+
 
     assign alu_op[1]  = inst_sub_w;
     assign alu_op[2] =
@@ -498,7 +554,13 @@ module ID_stage(
         inst_slti   |
         inst_ld_w   |
         inst_sltui  |
-        inst_st_w;
+        inst_st_w   |
+        inst_st_b   |
+        inst_st_h   |
+        inst_ld_b   |
+        inst_ld_bu  |
+        inst_ld_h   |
+        inst_ld_hu;
 
     assign need_si16 =
         inst_jirl |
@@ -536,7 +598,7 @@ module ID_stage(
     assign jirl_offs =
         {{14{i16[15]}}, i16, 2'b0};
 
-    // beq、bne和st.w的第二个寄存器号位于rd字段
+    // 分支和存储指令的第二个源寄存器号位于rd字段
     assign src_reg_is_rd =
         inst_beq |
         inst_bne |
@@ -544,7 +606,9 @@ module ID_stage(
         inst_bge |
         inst_bltu |
         inst_bgeu |
-        inst_st_w;
+        inst_st_w |
+        inst_st_b |
+        inst_st_h;
 
     // jirl、bl和pcaddu12i的ALU第一个操作数是PC
     assign src1_is_pc =
@@ -568,10 +632,22 @@ module ID_stage(
         inst_lu12i_w |
         inst_jirl    |
         inst_pcaddu12i |
-        inst_bl;
+        inst_bl        |
+        inst_st_b    |
+        inst_st_h    |
+        inst_ld_b    |
+        inst_ld_bu   |
+        inst_ld_h    |
+        inst_ld_hu;
+
 
     // ld.w最终写回的是内存数据
-    assign res_from_mem = inst_ld_w;
+    assign res_from_mem =
+        inst_ld_w |
+        inst_ld_b |
+        inst_ld_bu|
+        inst_ld_h |
+        inst_ld_hu;
 
     // bl固定写入1号寄存器
     assign dst_is_r1 = inst_bl;
@@ -579,16 +655,24 @@ module ID_stage(
     // 这些指令不写通用寄存器，其余已实现指令需要写
     assign gr_we =
         !inst_st_w &&
+        !inst_st_b &&
         !inst_beq  &&
         !inst_bne  &&
         !inst_blt  &&
         !inst_bge  &&
         !inst_bltu &&
         !inst_bgeu &&
-        !inst_b;
+        !inst_b    &&
+        !inst_st_h ;
 
-    // st.w需要写数据RAM
-    assign mem_we = inst_st_w;
+    // 存储指令需要写数据RAM
+    assign mem_we = inst_st_w | inst_st_b | inst_st_h;
+    //ex6
+    assign store_is_byte = inst_st_b;
+    assign store_is_half = inst_st_h;
+    assign load_is_byte = inst_ld_b | inst_ld_bu;
+    assign load_unsigned = inst_ld_bu | inst_ld_hu;
+    assign load_is_half = inst_ld_h | inst_ld_hu;
 
     // bl写r1，其余写rd
     assign dest = dst_is_r1 ? 5'd1 : rd;
@@ -632,7 +716,13 @@ module ID_stage(
         inst_blt     |
         inst_bltu    |
         inst_bge     |
-        inst_bgeu;
+        inst_bgeu    |
+        inst_st_b    |
+        inst_st_h    |
+        inst_ld_b    |
+        inst_ld_bu   |
+        inst_ld_h    |
+        inst_ld_hu;
 
     // 使用第二个寄存器操作数的指令
     assign src2_is_reg =
@@ -648,12 +738,14 @@ module ID_stage(
         inst_or    |
         inst_xor   |
         inst_st_w  |
+        inst_st_b  |
         inst_beq   |
         inst_bne   |
         inst_blt   |
         inst_bge   |
         inst_bltu  |
-        inst_bgeu;
+        inst_bgeu  |
+        inst_st_h;
 
 
     // 源寄存器1与后三级目的寄存器匹配
