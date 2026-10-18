@@ -100,6 +100,16 @@ module ID_stage(
     wire load_is_half;
     wire inst_ld_hu;
 
+    // ex7
+    wire inst_mul_w;
+    wire inst_mulh_w;
+    wire inst_mulh_wu;
+    wire inst_div_w;
+    wire es_ready_go_for_ds;
+    wire inst_mod_w;
+    wire inst_div_wu;
+    wire inst_mod_wu;
+
     wire inst_ld_w;
     wire inst_st_w;
     wire inst_jirl;
@@ -204,13 +214,17 @@ module ID_stage(
     // EXE中的加载指令与ID之间的数据相关
     wire load_use_hazard;
 
+    // ID依赖EXE尚未完成的结果
+    wire es_wait_hazard;
+
     // 拆出EXE、MEM、WB反馈给ID的信息
     assign {
         es_valid_for_ds,
         es_res_from_mem_for_ds,
         es_gr_we_for_ds,
         es_dest_for_ds,
-        es_result_for_ds
+        es_result_for_ds,
+        es_ready_go_for_ds
     } = es_to_ds_bus;
 
     assign {
@@ -362,6 +376,55 @@ module ID_stage(
         op_31_26_d[6'h0a] &&
         op_25_22_d[4'h9];
 
+    // mul.w译码
+    assign inst_mul_w =
+        op_31_26_d[6'h00] &&
+        op_25_22_d[4'h0]  &&
+        op_21_20_d[2'h1]  &&
+        op_19_15_d[5'h18];
+
+    // mulh.w译码
+    assign inst_mulh_w =
+        op_31_26_d[6'h00] &&
+        op_25_22_d[4'h0]  &&
+        op_21_20_d[2'h1]  &&
+        op_19_15_d[5'h19];
+
+    // mulh.wu译码
+    assign inst_mulh_wu =
+        op_31_26_d[6'h00] &&
+        op_25_22_d[4'h0]  &&
+        op_21_20_d[2'h1]  &&
+        op_19_15_d[5'h1a];
+
+    // div.w译码
+    assign inst_div_w =
+        op_31_26_d[6'h00] &&
+        op_25_22_d[4'h0]  &&
+        op_21_20_d[2'h2]  &&
+        op_19_15_d[5'h00];
+
+    // mod.w译码
+    assign inst_mod_w =
+        op_31_26_d[6'h00] &&
+        op_25_22_d[4'h0]  &&
+        op_21_20_d[2'h2]  &&
+        op_19_15_d[5'h01];
+
+    // div.wu译码
+    assign inst_div_wu =
+        op_31_26_d[6'h00] &&
+        op_25_22_d[4'h0]  &&
+        op_21_20_d[2'h2]  &&
+        op_19_15_d[5'h02];
+
+    // mod.wu译码
+    assign inst_mod_wu =
+        op_31_26_d[6'h00] &&
+        op_25_22_d[4'h0]  &&
+        op_21_20_d[2'h2]  &&
+        op_19_15_d[5'h03];
+
     assign inst_sub_w =
         op_31_26_d[6'h00] &&
         op_25_22_d[4'h0]  &&
@@ -444,8 +507,9 @@ module ID_stage(
         op_31_26_d[6'h05] &&
         !ds_inst[25];
 
-    // 只有EXE中的加载结果尚未返回时，ID才阻塞
-    assign ds_ready_go = !load_use_hazard;
+    // 等待加载数据或EXE尚未完成的相关结果
+    assign ds_ready_go =
+        !load_use_hazard && !es_wait_hazard;
 
     // ID为空，或者当前指令可以送给EXE时，允许IF送入新指令
     assign ds_allowin =
@@ -488,7 +552,14 @@ module ID_stage(
         res_from_mem,    // 1位
         load_is_byte,     // 1位
         load_unsigned,     // 1位
-        load_is_half
+        load_is_half,
+        inst_mul_w,
+        inst_mulh_w,
+        inst_mulh_wu,
+        inst_div_w,
+        inst_mod_w,
+        inst_div_wu,
+        inst_mod_wu
 
     };
     
@@ -722,7 +793,15 @@ module ID_stage(
         inst_ld_b    |
         inst_ld_bu   |
         inst_ld_h    |
-        inst_ld_hu;
+        inst_ld_hu   |
+        inst_mul_w   |
+        inst_mulh_w  |
+        inst_mulh_wu |
+        inst_div_w   |
+        inst_mod_w   |
+        inst_div_wu  |
+        inst_mod_wu
+        ;
 
     // 使用第二个寄存器操作数的指令
     assign src2_is_reg =
@@ -745,7 +824,14 @@ module ID_stage(
         inst_bge   |
         inst_bltu  |
         inst_bgeu  |
-        inst_st_h;
+        inst_st_h  |
+        inst_mul_w |
+        inst_mulh_w|
+        inst_mulh_wu|
+        inst_div_w |
+        inst_mod_w |
+        inst_div_wu|
+        inst_mod_wu;
 
 
     // 源寄存器1与后三级目的寄存器匹配
@@ -801,6 +887,10 @@ module ID_stage(
     // EXE中是加载指令，并且其目的寄存器被ID使用时，需要阻塞一拍
     assign load_use_hazard =
         es_res_from_mem_for_ds &&
+        (es_src1_match || es_src2_match);
+
+    assign es_wait_hazard =
+        !es_ready_go_for_ds &&
         (es_src1_match || es_src2_match);
 
     regfile u_regfile(

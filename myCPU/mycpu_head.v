@@ -8,7 +8,7 @@
 `define FS_TO_DS_BUS_WD 64
 
 // ID -> EXE：控制信号、操作数、目的寄存器等
-`define DS_TO_ES_BUS_WD 153
+`define DS_TO_ES_BUS_WD 160
 
 // EXE -> MEM：ALU结果、访存数据、写回信息等
 `define ES_TO_MS_BUS_WD 107
@@ -19,7 +19,7 @@
 // WB -> 寄存器堆：写使能、目的寄存器、写回数据
 `define WS_TO_RF_BUS_WD 38
 
-`define ES_TO_DS_BUS_WD 40
+`define ES_TO_DS_BUS_WD 41
 `define MS_TO_DS_BUS_WD 39
 `define WS_TO_DS_BUS_WD 39
 `endif
