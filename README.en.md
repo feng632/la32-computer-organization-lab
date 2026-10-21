@@ -28,7 +28,7 @@ IF → ID → EXE → MEM → WB
        ex3: forwarding to ID
 ```
 
-`main` contains the current ex5 CPU and the packaged project files. Original branches and tags preserve each experiment's CPU implementation.
+`main` contains the current ex7 CPU, matching ex7 test images and reference trace, and the packaged project files. Original branches and tags preserve each experiment's implementation.
 
 ## Experiments
 
@@ -39,8 +39,10 @@ IF → ID → EXE → MEM → WB
 | ex3 | EXE/MEM/WB forwarding to ID; one-cycle load-use stall | `ex3-forwarding` / `ex3-pass` | `e3410f8` | Historical local simulation passed |
 | ex4 | Add `slti`, `sltui`, `andi`, `ori`, `xori`, `sll.w`, `srl.w`, `sra.w`, `pcaddu12i` | `ex4-alu` / `ex4-pass` | `1b38683` | Historical commit records a simulation pass |
 | ex5 | Add `blt`, `bge`, `bltu`, `bgeu` | `ex5-branch` | `e1f2723` | Historical log passes 33 test points, including all four new branches |
+| ex6 | Add `ld.b`, `ld.bu`, `ld.h`, `ld.hu`, `st.b`, `st.h` | `ex6-memory` / `ex6-pass` | `abe2780` | Local simulation PASS; remote task `4735`, 100/100 |
+| ex7 (Experiment 3) | Add `mul.w`, `mulh.w`, `mulh.wu`, `div.w`, `mod.w`, `div.wu`, `mod.wu`; multicycle division and dependency stalls | `ex7-muldiv` / `ex7-pass` | `06cc150` | Local simulation PASS; remote task `5890`, 100/100 |
 
-An independent ex3 hardware project generated a bitstream for `xc7a200tfbg676-1` with a 50 MHz CPU clock and passed DRC and timing checks. **Bitstream generation does not establish a remote judge pass; the online result has not been confirmed.**
+The ex6 and ex7 remote builds target `xc7a200tfbg676-1` with a 50 MHz CPU clock; both received 100/100 online. The ex7 build has 0 DRC errors and 18 warnings, but its worst setup slack is −1.127 ns: **static timing is not fully met**. Online scores and static timing are recorded separately. See the [ex7 verification and build record (Chinese)](docs/verification/ex7/README.md). Bitstreams, DCPs, and caches are excluded.
 
 ## Repository layout
 
@@ -65,7 +67,7 @@ git clone https://github.com/feng632/la32-computer-organization-lab.git
 cd la32-computer-organization-lab
 ```
 
-Use `main` for the current ex5 implementation and packaged environment. Students with the course environment can place the desired `myCPU/` version into their existing `mycpu_env/`.
+Use `main` for the current ex7 implementation and packaged environment. Students with the course environment can place the desired `myCPU/` version into their existing `mycpu_env/` and add the required divider IPs.
 
 To inspect a historical CPU:
 
@@ -76,7 +78,7 @@ git switch --detach ex3-pass
 git switch main
 ```
 
-The original experiment branches primarily contain CPU sources. The complete published layout is on `main`. To use ex3 within that layout:
+The original experiment branches contain stage snapshots; ex7 also includes divider configurations and verification records. The complete published layout is on `main`. To use ex3 within that layout:
 
 ```bash
 git restore --source=ex3-pass -- myCPU
@@ -88,9 +90,9 @@ These commands overwrite local changes inside `myCPU/`; save your edits first.
 
 ### 2. Match the test program to the experiment
 
-Bundled `func/obj/inst_ram.coe`, `inst_ram.mif`, and `test.s` are existing precompiled assets. The disassembled entry point invokes 20 base tests, 9 ex4 tests, and 4 ex5 tests: 33 test points in total.
+Bundled `func/obj/inst_ram.coe`, `inst_ram.mif`, and `test.s` now use the course-provided **ex7 precompiled image**, covering all 46 test points, including the seven multiply/divide tests n30–n36. `gettrace/golden_trace.txt` was regenerated with this same image.
 
-The assembly sources and precompiled assets were saved separately. Rebuilding with the default Makefile is not guaranteed to reproduce these 33 tests. The original Makefile's `EXP` configuration numbers do not directly correspond to this repository's ex1–ex5 numbering.
+The assembly sources and precompiled assets were saved separately. Rebuilding with the default Makefile is not guaranteed to reproduce this test set. The original Makefile's `EXP` numbers do not directly correspond to this repository's ex1–ex7 numbering. Course `for_test_obj/exN_obj` images can be used without cross-compilation.
 
 For earlier CPUs, use the appropriate course test image and matching `golden_trace.txt`. ex1 also requires a program compatible with its dependency limitations. Changing the CPU alone can leave unsupported instructions in the test image.
 
@@ -111,6 +113,7 @@ The original script creates `project/loongson.xpr` for `xc7a200tfbg676-1`. Open 
 
 ### 4. Check simulation settings
 
+- ex7 requires both Divider Generator IPs, `div_signed` and `div_unsigned`. Their `.xci` files are under their respective `soc_verify/soc_bram/rtl/xilinx_ip/` directories and are referenced by the bundled project and creation script. For an existing course project, add both `.xci` files and **Generate Output Products**. They use 32-bit Radix2, integer remainder, Non Blocking, and ARESETN; automatic Signed/Unsigned latencies are 36/34 cycles. Do not substitute empty module stubs.
 - Simulation top: **`tb_top`**, defined in `testbench/mycpu_tb.v`. Design top: `soc_lite_top`.
 - If `sync_ram.v` is included, remove it or disable its simulation usage. It is an alternative RAM model and duplicates the Xilinx `inst_ram` and `data_ram` modules.
 - Point the `inst_ram` IP's **COE File** to the intended `func/obj/inst_ram.coe`, then regenerate its Output Products.
@@ -140,7 +143,7 @@ The full log is normally located at:
 soc_verify/soc_bram/run_vivado/project/loongson.sim/sim_1/behav/xsim/simulate.log
 ```
 
-Test numbers follow execution order. In the bundled image, test points 30–33 are `blt`, `bge`, `bltu`, and `bgeu`, although their assembly filenames use n37–n40.
+The current ex7 image should reach test point 46 and a final PASS. Earlier images count differently: ex5 skips n30–n36 and runs 33 tests; ex6 also skips those seven and runs 39. A PASS from an older image does not verify the newly added instructions.
 
 For errors, failures, missing files, or a run that never finishes, check the CPU version, test image, reference trace, IP configuration, and paths. Historical PASS logs document their associated runs.
 

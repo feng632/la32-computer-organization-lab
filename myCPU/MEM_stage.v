@@ -43,10 +43,42 @@ module MEM_stage(
 
     // 当前指令最终产生的结果
     wire [31:0] ms_final_result;
+    //ex6
+    wire ms_load_is_byte;
+    wire [7:0]  ms_load_byte;
+    wire [31:0] ms_load_result;
+    wire ms_load_unsigned;
+    wire ms_load_is_half;
+    wire [15:0] ms_load_half;
 
-    // 拆开EXE传来的104位总线
+    assign ms_load_half =
+        ms_alu_result[1]
+        ? data_sram_rdata[31:16]
+        : data_sram_rdata[15:0];
+
+
+    assign ms_load_byte =
+        (ms_alu_result[1:0] == 2'b00) ? data_sram_rdata[ 7: 0] :
+        (ms_alu_result[1:0] == 2'b01) ? data_sram_rdata[15: 8] :
+        (ms_alu_result[1:0] == 2'b10) ? data_sram_rdata[23:16] :
+                                        data_sram_rdata[31:24];
+
+    assign ms_load_result =
+        ms_load_is_byte
+        ? (ms_load_unsigned
+            ? {24'b0, ms_load_byte}
+            : {{24{ms_load_byte[7]}}, ms_load_byte})
+        :ms_load_is_half
+            ? (ms_load_unsigned
+                ? {16'b0, ms_load_half}
+                : {{16{ms_load_half[15]}}, ms_load_half})
+            : data_sram_rdata;
+    // 拆开EXE传来的107位总线
     assign {
         ms_res_from_mem,
+        ms_load_is_byte,
+        ms_load_unsigned,
+        ms_load_is_half,
         ms_gr_we,
         ms_mem_we,
         ms_dest,
@@ -89,9 +121,9 @@ module MEM_stage(
      * 其他需要写回的指令选择ALU结果。
      */
     assign ms_final_result =
-           ms_res_from_mem
-           ? data_sram_rdata
-           : ms_alu_result;
+        ms_res_from_mem
+        ? ms_load_result
+        : ms_alu_result;
 
     // 打包送给WB级
     assign ms_to_ws_bus = {

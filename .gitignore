@@ -9,6 +9,7 @@ soc_verify/**/rtl/xilinx_ip/**
 *.jou
 *.log
 !docs/verification/*.log
+!docs/verification/**/*.log
 *.wdb
 *.vcd
 *.dcp

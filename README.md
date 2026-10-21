@@ -28,7 +28,7 @@ IF 取指 → ID 译码 → EXE 执行 → MEM 访存 → WB 写回
                       ex3：结果前递到 ID
 ```
 
-`main` 保存目前的 ex5 CPU 和公开整理后的工程文件。各实验原始分支和标签保留阶段性代码，便于对照学习。本项目实现的是课程要求的指令子集。
+`main` 保存目前的 ex7 CPU、匹配的 ex7 测试镜像与参考轨迹，以及公开整理后的工程文件。各实验原始分支和标签保留阶段性代码，便于对照学习。本项目实现的是课程要求的指令子集。
 
 ## 实验进度
 
@@ -39,8 +39,10 @@ IF 取指 → ID 译码 → EXE 执行 → MEM 访存 → WB 写回
 | ex3 | EXE、MEM、WB 向 ID 前递；load-use 相关阻塞一拍 | `ex3-forwarding` / `ex3-pass` | `e3410f8` | 历史本地仿真通过 |
 | ex4 | 添加 `slti`、`sltui`、`andi`、`ori`、`xori`、`sll.w`、`srl.w`、`sra.w`、`pcaddu12i` | `ex4-alu` / `ex4-pass` | `1b38683` | 历史提交记录仿真通过 |
 | ex5 | 添加 `blt`、`bge`、`bltu`、`bgeu` | `ex5-branch` | `e1f2723` | 历史日志中 33 项测试通过，包含四条新增分支 |
+| ex6 | 添加 `ld.b`、`ld.bu`、`ld.h`、`ld.hu`、`st.b`、`st.h` | `ex6-memory` / `ex6-pass` | `abe2780` | 本地仿真 PASS；线上任务 `4735`，100 分 |
+| ex7（实验三） | 添加 `mul.w`、`mulh.w`、`mulh.wu`、`div.w`、`mod.w`、`div.wu`、`mod.wu`；除法多周期等待及相关阻塞 | `ex7-muldiv` / `ex7-pass` | `06cc150` | 本地仿真 PASS；线上任务 `5890`，100 分 |
 
-ex3 的独立远程评测工程曾成功生成 bitstream，目标器件为 `xc7a200tfbg676-1`、硬件 CPU 时钟为 50 MHz，DRC 和时序检查通过。**生成 bitstream 不等于线上评测通过，线上结果尚未确认。**
+ex6、ex7 的远程工程目标器件为 `xc7a200tfbg676-1`，CPU 时钟为 50 MHz，两次线上评测均为 100 分。ex7 bit 生成时 DRC 为 0 错误、18 警告，最差建立时间余量为 −1.127 ns，**静态时序未完全通过**；线上得分与静态时序结果分别记录。详见 [ex7 验收与构建记录](docs/verification/ex7/README.md)。bitstream、DCP 和缓存不随源码上传。
 
 ## 工程结构
 
@@ -50,8 +52,8 @@ myCPU/                         CPU 源码
 ├── mycpu_head.v               总线宽度定义
 ├── IF_stage.v                 取指、PC 和分支处理
 ├── ID_stage.v                 译码、相关检测、前递、分支判断
-├── EXE_stage.v                ALU 运算与 RAM 请求
-├── MEM_stage.v                选择访存数据或 ALU 结果
+├── EXE_stage.v                ALU、乘除法、除法等待与 RAM 请求
+├── MEM_stage.v                字节/半字选择、符号/零扩展及最终结果
 ├── WB_stage.v                 寄存器写回与调试输出
 ├── alu.v                      算术逻辑单元
 ├── regfile.v                  寄存器堆
@@ -76,7 +78,7 @@ git clone https://github.com/feng632/la32-computer-organization-lab.git
 cd la32-computer-organization-lab
 ```
 
-直接使用 `main` 可以取得当前 ex5 实现和随仓库提供的验证环境。
+直接使用 `main` 可以取得当前 ex7 实现和随仓库提供的验证环境。
 
 已有课程环境的同学，可以将本仓库对应版本的 `myCPU/` 放进自己的 `mycpu_env/`，继续使用课程提供的 SoC 和测试程序。
 
@@ -90,7 +92,7 @@ git switch --detach ex3-pass
 git switch main
 ```
 
-**原始实验分支主要保存 CPU 源码，完整公开目录位于 `main`。** 如果需要在 `main` 的验证环境中使用 ex3 CPU，可执行：
+**原始实验分支保存阶段源码（ex7 还包含除法器配置与验收记录），完整公开目录位于 `main`。** 如果需要在 `main` 的验证环境中使用 ex3 CPU，可执行：
 
 ```bash
 git restore --source=ex3-pass -- myCPU
@@ -106,9 +108,9 @@ git restore --source=HEAD -- myCPU
 
 ### 2. 准备匹配的测试程序
 
-仓库随附的 `func/obj/inst_ram.coe`、`inst_ram.mif` 和 `test.s` 是已有的预编译测试文件。反汇编入口依次调用基础 20 项、ex4 的 9 项和 ex5 的 4 项测试，共 33 项。
+仓库随附的 `func/obj/inst_ram.coe`、`inst_ram.mif` 和 `test.s` 已更新为课程提供的 **ex7 预编译镜像**，包含全部 46 项测试；`gettrace/golden_trace.txt` 是使用同一镜像重新生成的参考写回轨迹。ex7 的 n30～n36 覆盖全部 7 条乘除法指令。
 
-测试镜像与当前汇编源码是分别保存的；直接用默认 `make` 重编译，不保证生成同一套 33 项测试。`func/Makefile` 中的 `EXP` 是原始课程测试配置编号，不应直接当作这里的 ex1～ex5 编号。
+测试镜像与当前汇编源码是分别保存的；直接用默认 `make` 重编译，不保证生成同一套测试。`func/Makefile` 中的 `EXP` 是原始课程测试配置编号，不应直接当作这里的 ex1～ex7 编号。使用课程提供的 `for_test_obj/exN_obj` 时无需交叉编译。
 
 运行早期 CPU 时，请使用课程提供的对应实验镜像和匹配的 `golden_trace.txt`。ex1 还需要符合其数据相关限制的测试程序。**只切 CPU 版本而不换测试程序，可能执行尚未实现的指令，导致失败。**
 
@@ -131,6 +133,7 @@ source create_project.tcl
 
 ### 4. 检查仿真设置
 
+- ex7 必须包含 `div_signed`、`div_unsigned` 两个 Divider Generator IP。它们的 `.xci` 保存在 `soc_verify/soc_bram/rtl/xilinx_ip/` 各自子目录；随附 `.xpr` 和建工程脚本均引用它们。已有课程工程则需要自行添加这两个 `.xci`，并执行 **Generate Output Products**。配置为 32 位 Radix2、整数余数、Non Blocking、ARESETN；Signed/Unsigned 自动延迟分别为 36/34 周期，不要用默认空模块替代。
 - Simulation Sources 的顶层为 **`tb_top`**，来自 `testbench/mycpu_tb.v`；Design Sources 的顶层为 `soc_lite_top`。
 - 如果脚本把 `sync_ram.v` 也加入了 Vivado 仿真源，请移除它或禁用其仿真用途。它是另一种 RAM 模型，会与 Xilinx 的 `inst_ram`、`data_ram` IP 重复定义模块。
 - 确认 `inst_ram` IP 的 **COE File** 指向当前测试的 `func/obj/inst_ram.coe`，并重新生成 Output Products。
@@ -160,7 +163,7 @@ Test end!
 soc_verify/soc_bram/run_vivado/project/loongson.sim/sim_1/behav/xsim/simulate.log
 ```
 
-测试点编号是实际执行顺序。当前 33 项镜像中的第 30～33 项依次对应 `blt`、`bge`、`bltu`、`bgeu`，不是汇编文件名中的 n37～n40。
+当前 ex7 镜像应运行到第 46 项并出现最终 PASS。早期镜像的编号可能不同：ex5 跳过 n30～n36，所以仅有 33 项；ex6 同样跳过这 7 项，共 39 项。不要用旧镜像的 PASS 代替新指令验证。
 
 出现 `Error`、`Fail`、找不到文件或一直没有 `Test end!` 时，先核对 CPU 版本、测试镜像、参考 trace、IP 和文件路径。历史 PASS 日志仅代表其对应运行记录。
 

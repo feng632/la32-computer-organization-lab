@@ -1,0 +1,19 @@
+{
+  "bit_sha256": "9E3D44C535BC1CCA9830B6A1C47717F1CE054FCB3EBEC2A8A7FE9E96DCA0C66D",
+  "drc_errors": 0,
+  "online_judge": "passed",
+  "online_judge_task_id": 5890,
+  "online_judge_score": 100,
+  "online_judge_date": "2026-10-18",
+  "online_judge_evidence": "user_provided_screenshot",
+  "wns_ns": -1.127,
+  "cpu_clock_mhz": 50,
+  "drc_warnings": 18,
+  "bit_path": "E:\\LA32\\ex7_remote\\ex7_remote.bit",
+  "whs_ns": 0.019,
+  "route_errors": 0,
+  "tns_ns": -208.302,
+  "local_tag": "ex7-pass",
+  "part": "xc7a200tfbg676-1",
+  "source_commit": "06cc150"
+}

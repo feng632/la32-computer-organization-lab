@@ -8,7 +8,8 @@ add_files -scan_for_includes [glob -nocomplain ../rtl/*/*.v]
 add_files -quiet [glob -nocomplain ../rtl/xilinx_ip/*/*.xci]
 
 # Add simulation files
-add_files -fileset sim_1 ../testbench
+# Use Xilinx RAM IPs; sync_ram.v is an alternative model with duplicate names.
+add_files -fileset sim_1 ../testbench/mycpu_tb.v
 
 # Add myCPU
 add_files -scan_for_includes ../../../myCPU
