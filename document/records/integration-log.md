@@ -269,6 +269,34 @@ PASS: documentation links/fences, ABI bit layout, fixed baseline hashes, CSR per
 
 **需转达 A**：本次不是接口变更，但 A 的实现范围扩大两项（BADV 软件写路径、ECFG 掩码更正），且 A08/A09 的边界用例要求加严。B 的 `prep/b-g1-interface` WIP 代码不并入 main，保持原样。
 
+### G1.8 A 的 csr 实现合入（`871e15d`）
+
+2026-10-29 合并 `origin/csr` 的 `871e15d csr finished`，merge 提交见下。`csr.v` 由 45 行壳体扩为 185 行完整实现，**G1.6 所列"六路输出未驱动"隐患就此消除**。
+
+**逐项核对结果**：
+
+| 项 | 实现 | 判定 |
+|---|---|---|
+| 六路输出驱动 | `csr_rvalue` 用 `always @(*) case`；其余五路用 assign | ✓ |
+| 掩码写通式 | `(~mask & old) \| (mask & value)` | ✓ |
+| 异常提交 | PRMD←CRMD[2:0]、CRMD[2:0]←0、ERA←wb_pc、ESTAT[30:16]←{esubcode,ecode} | ✓ |
+| BADV | 可读写，且 `if (wb_badv_valid)` 才硬件更新，SYS/BRK 不覆盖 | ✓ 勘误要求达成 |
+| ESTAT 独立更新路径 | [9:2] 采 hw_int_in、[11] 定时器、[30:16] 异常、[1:0] 软件写，分散在不同分支 | ✓ 不会被 wb_ex 卡住 |
+| TICLR | 无普通写（读 0），清 IS[11] 走独立条件，且到期置位优先 | ✓ |
+| 定时器 | `_counter_expired = RUNNING && TVAL==0`；周期重装/单次停止并置 0xffffffff | ✓ 符合 04 |
+| 稳定计数器 | 64 位每拍 +1，不受 wb_ex/ertn/pipe_flush 影响 | ✓ |
+
+**发现的问题（已退回 A）**：
+
+| 编号 | 问题 | 依据 |
+|---|---|---|
+| G1-ISS-6 | **`ECFG[12]` 未实现**：`14'h004: ECFG[11:0] <= ...` 只赋值低 12 位，`ECFG[12]` 恒为复位值 0，软件写不进去 | `c8a5b33` 勘误要求 LIE[12:11] 均可读写，掩码 `0x00001bff`。A13 测试必然失败 |
+| G1-ISS-7 | `has_int` 用 `ESTAT[11:0] & ECFG[11:0]`，应为 `[12:0]` | 与 G1-ISS-6 同源；IS[12] 固定 0，故当前不影响功能，但需一并修正保持一致 |
+
+**静态检查**：Vivado `xvlog` 对 14 个文件重新分析，**0 ERROR / 0 WARNING**。
+
+**待做**：ex7 回归。判据仍是 46/46 PASS 且 `$finish` 为 **1376195 ns**。理论上 `csr` 的全部输出在 ex7 场景下不进入任何有效逻辑路径（`csr_num` 恒 0 → `csr_rvalue`=CRMD=0x8 但不被 WB 消费；`has_int`=0；`cnt_op` 恒 NONE 故 `counter_value` 不被 EXE 使用），预期回归通过，但**必须实跑确认，不得以推理代替**。
+
 ---
 
 ## G2 ～ G6
