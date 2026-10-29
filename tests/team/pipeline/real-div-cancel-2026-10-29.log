@@ -1,0 +1,29 @@
+#-----------------------------------------------------------
+# xsim v2023.2 (64-bit)
+# SW Build 4029153 on Fri Oct 13 20:14:34 MDT 2023
+# IP Build 4028589 on Sat Oct 14 00:45:43 MDT 2023
+# SharedData Build 4025554 on Tue Oct 10 17:18:54 MDT 2023
+# Start of session at: Thu Oct 29 22:00:05 2026
+# Process ID: 12672
+# Current directory: C:/Users/feng/AppData/Local/Temp/la32-realdiv-afd14ef0a10c4b429d4288fe378ab912
+# Command line: xsim.exe -mode tcl -source {xsim.dir/real_div_cancel/xsim_script.tcl}
+# Log file: C:/Users/feng/AppData/Local/Temp/la32-realdiv-afd14ef0a10c4b429d4288fe378ab912/xsim.log
+# Journal file: C:/Users/feng/AppData/Local/Temp/la32-realdiv-afd14ef0a10c4b429d4288fe378ab912\xsim.jou
+# Running On: LAPTOP-BLV935B0, OS: Windows, CPU Frequency: 2419 MHz, CPU Physical cores: 16, Host memory: 16890 MB
+#-----------------------------------------------------------
+source xsim.dir/real_div_cancel/xsim_script.tcl
+# xsim {real_div_cancel} -autoloadwcfg -runall
+Time resolution is 1 ps
+run -all
+PASS result fffffff2
+PASS result fffffffe
+PASS result 0fffffff
+PASS result 00000003
+PASS result 0000008e
+PASS result fffffffe
+PASS result 00000002
+PASS result 0000002a
+REAL_DIV_CANCEL_PASS checks=26 signed_requests=6 unsigned_requests=5
+$finish called at time : 7410 ns : File "E:/LA32/la32-computer-organization-lab/tests/team/pipeline/tb_div_cancel.sv" Line 170
+exit
+INFO: [Common 17-206] Exiting xsim at Thu Oct 29 22:00:07 2026...

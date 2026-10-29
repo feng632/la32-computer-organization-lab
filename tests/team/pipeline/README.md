@@ -18,6 +18,13 @@ results and fail immediately if requested. This test does NOT verify division,
 divider cancellation/recovery, all B01-B09 cases, timing, or the course ex8 image.
 It is a short real-CSR integration check, not full ex8 acceptance.
 
+## Separate real-divider validation
+
+The actual AMD divider IP cancellation/recovery test has now also been run.
+See [result and scope](real-div-result-2026-10-29.md).
+Its testbench is `tb_div_cancel.sv`; reproduce with `run_div_cancel.ps1`.
+Do not compile this bench together with the smoke bench's placeholder modules.
+
 ## Reproduce in PowerShell
 
 Run from the repository root. Generated files go to a new temporary directory.
