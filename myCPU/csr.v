@@ -157,7 +157,7 @@ module csr(
     assign ex_entry     = EENTRY;
     assign ertn_entry   = ERA;
     assign tid_value    = TID;
-    assign has_int      = CRMD[2] & (|(ESTAT[11:0] & ECFG[11:0]));
+    assign has_int      = CRMD[2] & (|(ESTAT[12:0] & ECFG[12:0]));
     assign counter_value= _STABLE_COUNTER;
 
     // CSR read selector
