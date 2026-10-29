@@ -1,0 +1,217 @@
+{
+  "version": "TEAM-ABI-1.0",
+  "status": "specified_not_implemented",
+  "clock": "posedge clk",
+  "reset": "synchronous active-high internal reset",
+  "exception_fields": [
+    {
+      "name": "valid",
+      "width": 1,
+      "msb": 48,
+      "lsb": 48
+    },
+    {
+      "name": "ecode",
+      "width": 6,
+      "msb": 47,
+      "lsb": 42
+    },
+    {
+      "name": "esubcode",
+      "width": 9,
+      "msb": 41,
+      "lsb": 33
+    },
+    {
+      "name": "badv_valid",
+      "width": 1,
+      "msb": 32,
+      "lsb": 32
+    },
+    {
+      "name": "badv",
+      "width": 32,
+      "msb": 31,
+      "lsb": 0
+    }
+  ],
+  "metadata_fields": [
+    {
+      "name": "csr_op",
+      "width": 2,
+      "msb": 163,
+      "lsb": 162
+    },
+    {
+      "name": "csr_num",
+      "width": 14,
+      "msb": 161,
+      "lsb": 148
+    },
+    {
+      "name": "csr_wmask",
+      "width": 32,
+      "msb": 147,
+      "lsb": 116
+    },
+    {
+      "name": "csr_wvalue",
+      "width": 32,
+      "msb": 115,
+      "lsb": 84
+    },
+    {
+      "name": "exc",
+      "width": 49,
+      "msb": 83,
+      "lsb": 35
+    },
+    {
+      "name": "ertn",
+      "width": 1,
+      "msb": 34,
+      "lsb": 34
+    },
+    {
+      "name": "cnt_op",
+      "width": 2,
+      "msb": 33,
+      "lsb": 32
+    },
+    {
+      "name": "cnt_value",
+      "width": 32,
+      "msb": 31,
+      "lsb": 0
+    }
+  ],
+  "csr_op": {
+    "NONE": 0,
+    "RD": 1,
+    "WR": 2,
+    "XCHG": 3
+  },
+  "cnt_op": {
+    "NONE": 0,
+    "LOW": 1,
+    "HIGH": 2,
+    "ID": 3
+  },
+  "unchanged_bus_widths": {
+    "BR_BUS_WD": 33,
+    "FS_TO_DS_BUS_WD": 64,
+    "DS_TO_ES_BUS_WD": 160,
+    "ES_TO_MS_BUS_WD": 107,
+    "MS_TO_WS_BUS_WD": 70,
+    "WS_TO_RF_BUS_WD": 38,
+    "ES_TO_DS_BUS_WD": 41,
+    "MS_TO_DS_BUS_WD": 39,
+    "WS_TO_DS_BUS_WD": 39
+  },
+  "new_bus_widths": {
+    "EXC_BUS_WD": 49,
+    "PIPE_META_WD": 164
+  },
+  "csr_ports": [
+    {
+      "name": "clk",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "reset",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "csr_num",
+      "direction": "input",
+      "width": 14
+    },
+    {
+      "name": "csr_we",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "csr_wmask",
+      "direction": "input",
+      "width": 32
+    },
+    {
+      "name": "csr_wvalue",
+      "direction": "input",
+      "width": 32
+    },
+    {
+      "name": "wb_ex",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "wb_ecode",
+      "direction": "input",
+      "width": 6
+    },
+    {
+      "name": "wb_esubcode",
+      "direction": "input",
+      "width": 9
+    },
+    {
+      "name": "wb_pc",
+      "direction": "input",
+      "width": 32
+    },
+    {
+      "name": "wb_badv_valid",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "wb_badv",
+      "direction": "input",
+      "width": 32
+    },
+    {
+      "name": "ertn_flush",
+      "direction": "input",
+      "width": 1
+    },
+    {
+      "name": "hw_int_in",
+      "direction": "input",
+      "width": 8
+    },
+    {
+      "name": "csr_rvalue",
+      "direction": "output",
+      "width": 32
+    },
+    {
+      "name": "ex_entry",
+      "direction": "output",
+      "width": 32
+    },
+    {
+      "name": "ertn_entry",
+      "direction": "output",
+      "width": 32
+    },
+    {
+      "name": "has_int",
+      "direction": "output",
+      "width": 1
+    },
+    {
+      "name": "counter_value",
+      "direction": "output",
+      "width": 64
+    },
+    {
+      "name": "tid_value",
+      "direction": "output",
+      "width": 32
+    }
+  ]
+}

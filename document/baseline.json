@@ -1,0 +1,291 @@
+{
+  "record_date": "2026-10-29",
+  "repository": "https://github.com/feng632/la32-computer-organization-lab",
+  "base_commit": "48dc551bbc685e5351a057b7a26c8115bc7ddcf6",
+  "repository_hash_method": "SHA-256 of git blob with CRLF normalized to LF",
+  "repository_files": [
+    {
+      "path": "myCPU/EXE_stage.v",
+      "sha256_git_lf": "59FB18ECF2C6686C9C3646E5A0062580E89E490D7B05455C313855DC716250F9"
+    },
+    {
+      "path": "myCPU/ID_stage.v",
+      "sha256_git_lf": "B09F28274D48364136A9FEEB48157FB24C4B7CCF96637490305FC3E7A8EABB80"
+    },
+    {
+      "path": "myCPU/IF_stage.v",
+      "sha256_git_lf": "2AB13A8A5D8897C3BFFFF74A699657FC443D3359C41FC56C81B8AA8157CDF3F4"
+    },
+    {
+      "path": "myCPU/MEM_stage.v",
+      "sha256_git_lf": "C3FA813FF46235D56B188C945E2FBAAD2345F5E5DB5987FBDC20D6D4E97BB8A3"
+    },
+    {
+      "path": "myCPU/WB_stage.v",
+      "sha256_git_lf": "EBCC866529087A3595B628A6FA029FFD8E1BF7677FA6AD2F12C1B9653964C223"
+    },
+    {
+      "path": "myCPU/alu.v",
+      "sha256_git_lf": "0D304D58DDFE68D5CDAE4BF8BD3A975C6B79087E562CA62A7C9ED8C6CDA0CAA1"
+    },
+    {
+      "path": "myCPU/mycpu_head.v",
+      "sha256_git_lf": "A36BD5BA2EA6093AD6A1094D574425734B0090CE65FF10344187D6EA6EA9BC64"
+    },
+    {
+      "path": "myCPU/mycpu_top.v",
+      "sha256_git_lf": "FC069FF416DE28127C2A4763AACE4AE57CE6B24BB49F0B095EE4B555190BC5F3"
+    },
+    {
+      "path": "myCPU/regfile.v",
+      "sha256_git_lf": "AF98146A32E00D3D20ED7646414EFE509C7E0EE59D4F5232C0A44A61D1332D8C"
+    },
+    {
+      "path": "myCPU/tools.v",
+      "sha256_git_lf": "32761BB84AD3E5DAB21E7A7BFE2B82908CE0D265DCFE0F7B2BEFC569E9F62F28"
+    },
+    {
+      "path": "soc_verify/soc_bram/rtl/xilinx_ip/clk_pll/clk_pll.xci",
+      "sha256_git_lf": "55CB2438B60A43A3F65D87A46515EFAB1F92FA6A4D24AEC9BE2617D9CBF56E69"
+    },
+    {
+      "path": "soc_verify/soc_bram/rtl/xilinx_ip/data_ram/data_ram.xci",
+      "sha256_git_lf": "2FE1B0B2EFCDCF0FF82A4D45D61C4B9219F8138ABA4457C54D330BE6E39E9210"
+    },
+    {
+      "path": "soc_verify/soc_bram/rtl/xilinx_ip/div_signed/div_signed.xci",
+      "sha256_git_lf": "305D0663BBC2890516C0734A110AA0545166DE237D58AFE828179250573B0720"
+    },
+    {
+      "path": "soc_verify/soc_bram/rtl/xilinx_ip/div_unsigned/div_unsigned.xci",
+      "sha256_git_lf": "3008EB114DE7A5BFBEB9A804EF2B2B006C1545ED29D6F25B9CF6CB46388B4403"
+    },
+    {
+      "path": "soc_verify/soc_bram/rtl/xilinx_ip/inst_ram/inst_ram.xci",
+      "sha256_git_lf": "AFA3465D1FA54E3C868B38584E9C862CEE4635D1C6A62B80CEB137F52CDADE47"
+    },
+    {
+      "path": "func/obj/data_ram.coe",
+      "sha256_git_lf": "8BC44E0D7C792DF9AADF8965F33E95A3CA0F22ABD57867712256FA2D3151CAF2"
+    },
+    {
+      "path": "func/obj/data_ram.mif",
+      "sha256_git_lf": "54E1F555D80AAEEEAC4552DBBDD05E67DB5D70AC301DF9A019AFC9E90F64E92E"
+    },
+    {
+      "path": "func/obj/inst_ram.coe",
+      "sha256_git_lf": "496A19F493B1AEBA769A35761D71BD7CCB439C3F532F7F3A24BE253C2FF1381A"
+    },
+    {
+      "path": "func/obj/inst_ram.mif",
+      "sha256_git_lf": "DB7E1760B3FD8373A9F65886A6185CEB1038A47369E7541FB43ED88897960E66"
+    },
+    {
+      "path": "func/obj/test.s",
+      "sha256_git_lf": "30D75786559420CCA122241B3F9F0877FF0599FCFC17F7DC47FA6CD0B89E26B5"
+    },
+    {
+      "path": "gettrace/golden_trace.txt",
+      "sha256_git_lf": "57F940746D7CB7622E5448AA927C46B93D6A1128323B1D2BC1A4DEF961B1A33A"
+    },
+    {
+      "path": "soc_verify/soc_bram/run_vivado/project/loongson.xpr",
+      "sha256_git_lf": "37559EDF7C51082AA5B82A87AC968EA01357EF25B1B7E36AA0C0DA6A20B91C1A"
+    }
+  ],
+  "course_materials_not_redistributed": [
+    {
+      "course_relative_path": "计组课设指导书LA版-2025.pdf",
+      "sha256_raw": "BD7BAD883CDDD7B24CD2746B7F684397A90CCF369457AB5A42F394A2F0940A4B"
+    },
+    {
+      "course_relative_path": "计算机组成原理课程设计说明LA+2026.pptx",
+      "sha256_raw": "44C215DC9A62DFD83822572051D77373158A7FB47954D95564289CD7CE3BA5CB"
+    }
+  ],
+  "external_course_images_not_redistributed": {
+    "ex8": {
+      "course_directory": "for_test_obj/ex8_obj",
+      "files": [
+        {
+          "name": "data_ram.coe",
+          "size_bytes": 74,
+          "sha256_raw": "8BC44E0D7C792DF9AADF8965F33E95A3CA0F22ABD57867712256FA2D3151CAF2"
+        },
+        {
+          "name": "data_ram.mif",
+          "size_bytes": 33,
+          "sha256_raw": "54E1F555D80AAEEEAC4552DBBDD05E67DB5D70AC301DF9A019AFC9E90F64E92E"
+        },
+        {
+          "name": "inst_ram.coe",
+          "size_bytes": 1181540,
+          "sha256_raw": "E6A1F8AA036755FB53B4A2EC9847C9D850A2D104E2A9E5FEEA7D2D9324D25A05"
+        },
+        {
+          "name": "inst_ram.mif",
+          "size_bytes": 4332075,
+          "sha256_raw": "27CFC90E055220A27ACAE644A3E4F5FF0D2404D9EA6C289B9DD850F2197D2FBC"
+        },
+        {
+          "name": "rom.vlog",
+          "size_bytes": 1575301,
+          "sha256_raw": "F2996A546F8AECA98610EF11877DD65E0843B621404E6AC5AED233605190B35A"
+        },
+        {
+          "name": "test.s",
+          "size_bytes": 5719595,
+          "sha256_raw": "7F9D6FD47A70C622E8E75CB337B560515F835332753216D5421C293117B1EADB"
+        }
+      ],
+      "static_test_labels": [
+        "n1_lu12i_w_test",
+        "n2_add_w_test",
+        "n3_addi_w_test",
+        "n4_sub_w_test",
+        "n5_slt_test",
+        "n6_sltu_test",
+        "n7_and_test",
+        "n8_or_test",
+        "n9_xor_test",
+        "n10_nor_test",
+        "n11_slli_w_test",
+        "n12_srli_w_test",
+        "n13_srai_w_test",
+        "n14_ld_w_test",
+        "n15_st_w_test",
+        "n16_beq_test",
+        "n17_bne_test",
+        "n18_bl_test",
+        "n19_jirl_test",
+        "n20_b_test",
+        "n21_pcaddu12i_test",
+        "n22_slti_test",
+        "n23_sltui_test",
+        "n24_andi_test",
+        "n25_ori_test",
+        "n26_xori_test",
+        "n27_sll_w_test",
+        "n28_sra_w_test",
+        "n29_srl_w_test",
+        "n30_div_w_test",
+        "n31_div_wu_test",
+        "n32_mul_w_test",
+        "n33_mulh_w_test",
+        "n34_mulh_wu_test",
+        "n35_mod_w_test",
+        "n36_mod_wu_test",
+        "n37_blt_test",
+        "n38_bge_test",
+        "n39_bltu_test",
+        "n40_bgeu_test",
+        "n41_ld_b_test",
+        "n42_ld_h_test",
+        "n43_ld_bu_test",
+        "n44_ld_hu_test",
+        "n45_st_b_test",
+        "n46_st_h_test",
+        "n47_syscall_ex_test"
+      ],
+      "execution_status": "not_run_by_this_document_release"
+    },
+    "ex9": {
+      "course_directory": "for_test_obj/ex9_obj",
+      "files": [
+        {
+          "name": "data_ram.coe",
+          "size_bytes": 74,
+          "sha256_raw": "8BC44E0D7C792DF9AADF8965F33E95A3CA0F22ABD57867712256FA2D3151CAF2"
+        },
+        {
+          "name": "data_ram.mif",
+          "size_bytes": 33,
+          "sha256_raw": "54E1F555D80AAEEEAC4552DBBDD05E67DB5D70AC301DF9A019AFC9E90F64E92E"
+        },
+        {
+          "name": "inst_ram.coe",
+          "size_bytes": 1199306,
+          "sha256_raw": "BEA7A2C05524B198D77F79B8F85F84C4693B0B416BD7560FE2891BE646525221"
+        },
+        {
+          "name": "inst_ram.mif",
+          "size_bytes": 4397217,
+          "sha256_raw": "E15A8C727C9461A0DF8BD9F81356F9F9690B7F9F1B6861B58CE7B2453F0D0A79"
+        },
+        {
+          "name": "rom.vlog",
+          "size_bytes": 1598989,
+          "sha256_raw": "E8DB19CE985FEAC24CE53FA60AA954103B43C9C0BA5A65CFD8716E96F583774E"
+        },
+        {
+          "name": "test.s",
+          "size_bytes": 5809455,
+          "sha256_raw": "87E396E3041F377E6F10356A5455521AB207B49AF29183B7D6F45D325BF9901F"
+        }
+      ],
+      "static_test_labels": [
+        "n1_lu12i_w_test",
+        "n2_add_w_test",
+        "n3_addi_w_test",
+        "n4_sub_w_test",
+        "n5_slt_test",
+        "n6_sltu_test",
+        "n7_and_test",
+        "n8_or_test",
+        "n9_xor_test",
+        "n10_nor_test",
+        "n11_slli_w_test",
+        "n12_srli_w_test",
+        "n13_srai_w_test",
+        "n14_ld_w_test",
+        "n15_st_w_test",
+        "n16_beq_test",
+        "n17_bne_test",
+        "n18_bl_test",
+        "n19_jirl_test",
+        "n20_b_test",
+        "n21_pcaddu12i_test",
+        "n22_slti_test",
+        "n23_sltui_test",
+        "n24_andi_test",
+        "n25_ori_test",
+        "n26_xori_test",
+        "n27_sll_w_test",
+        "n28_sra_w_test",
+        "n29_srl_w_test",
+        "n30_div_w_test",
+        "n31_div_wu_test",
+        "n32_mul_w_test",
+        "n33_mulh_w_test",
+        "n34_mulh_wu_test",
+        "n35_mod_w_test",
+        "n36_mod_wu_test",
+        "n37_blt_test",
+        "n38_bge_test",
+        "n39_bltu_test",
+        "n40_bgeu_test",
+        "n41_ld_b_test",
+        "n42_ld_h_test",
+        "n43_ld_bu_test",
+        "n44_ld_hu_test",
+        "n45_st_b_test",
+        "n46_st_h_test",
+        "n47_syscall_ex_test",
+        "n48_brk_ex_test",
+        "n49_ti_ex_test",
+        "n50_ine_ex_test",
+        "n51_soft_int_ex_test",
+        "n52_adef_ex_test",
+        "n53_ale_ld_w_ex_test",
+        "n54_ale_ld_h_ex_test",
+        "n55_ale_ld_hu_ex_test",
+        "n56_ale_st_h_ex_test",
+        "n57_ale_st_w_ex_test",
+        "n58_rdcnt_test"
+      ],
+      "execution_status": "not_run_by_this_document_release"
+    }
+  },
+  "cpu_changed_by_document_release": false,
+  "ex8_ex9_functional_status": "not_implemented_or_tested_by_this_release"
+}
