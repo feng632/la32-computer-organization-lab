@@ -40,6 +40,9 @@ module EXE_stage(
     reg  es_valid;
     wire es_ready_go;
 
+    wire es_exc_valid;
+    wire es_mem_req_ok;
+
     // 保存ID级传来的总线
     reg [`DS_TO_ES_BUS_WD-1:0] ds_to_es_bus_r;
 
@@ -91,48 +94,112 @@ module EXE_stage(
     // 保存商和余数
     reg [63:0] div_signed_result;
 
+
+    // 两个除法器共用的复位恢复控制
+    localparam DIV_RESET_HOLD = 2'd0;
+    localparam DIV_RECOVER    = 2'd1;
+    localparam DIV_RUN        = 2'd2;
+
+    reg [1:0] div_state;
+    reg       div_hold_count;
+
+    wire div_ip_aresetn;
+    wire div_can_run;
+
+    assign div_ip_aresetn =
+        !reset && !pipe_flush &&
+        (div_state != DIV_RESET_HOLD);
+
+    assign div_can_run =
+        !reset && !pipe_flush &&
+        (div_state == DIV_RUN);
+
     always @(posedge clk) begin
-        if (reset) begin
+        if (reset || pipe_flush) begin
+            div_state      <= DIV_RESET_HOLD;
+            div_hold_count <= 1'b0;
+        end
+        else begin
+            case (div_state)
+                DIV_RESET_HOLD: begin
+                    if (div_hold_count) begin
+                        div_state <= DIV_RECOVER;
+                    end
+                    else begin
+                        div_hold_count <= 1'b1;
+                    end
+                end
+
+                DIV_RECOVER: begin
+                    div_state <= DIV_RUN;
+                end
+
+                DIV_RUN: begin
+                    div_state <= DIV_RUN;
+                end
+
+                default: begin
+                    div_state      <= DIV_RESET_HOLD;
+                    div_hold_count <= 1'b0;
+                end
+            endcase
+        end
+    end
+
+    always @(posedge clk) begin
+        if (reset || pipe_flush || !div_can_run) begin
             div_signed_done   <= 1'b0;
             div_signed_result <= 64'b0;
         end
         else if (es_allowin) begin
             div_signed_done <= 1'b0;
         end
-        else if (div_signed_out_valid) begin
+        else if (div_signed_out_valid &&
+                     div_can_run &&
+                     div_signed_sent && !div_signed_done &&
+                     es_valid && !es_exc_valid &&
+                     (es_inst_div_w || es_inst_mod_w)) begin
             div_signed_done   <= 1'b1;
             div_signed_result <= div_signed_out_data;
         end
     end
 
     always @(posedge clk) begin
-        if (reset) begin
+        if (reset || pipe_flush || !div_can_run) begin
             div_unsigned_done   <= 1'b0;
             div_unsigned_result <= 64'b0;
         end
         else if (es_allowin) begin
             div_unsigned_done <= 1'b0;
         end
-        else if (div_unsigned_out_valid) begin
+        else if (div_unsigned_out_valid &&
+                     div_can_run &&
+                     div_unsigned_sent && !div_unsigned_done &&
+                     es_valid && !es_exc_valid &&
+                     (es_inst_div_wu || es_inst_mod_wu)) begin
             div_unsigned_done   <= 1'b1;
             div_unsigned_result <= div_unsigned_out_data;
         end
     end
 
     assign div_signed_req =
+        div_can_run &&
         es_valid &&
         (es_inst_div_w || es_inst_mod_w) &&
         !div_signed_sent &&
-        !reset;
+        !reset && !pipe_flush &&
+        !es_exc_valid && !ms_ex_pending;
 
     assign div_unsigned_req =
+        div_can_run &&
         es_valid &&
         (es_inst_div_wu || es_inst_mod_wu) &&
         !div_unsigned_sent &&
-        !reset;
+        !reset && !pipe_flush &&
+        !es_exc_valid && !ms_ex_pending;
 
     always @(posedge clk) begin
-        if (reset) begin
+        if (reset || pipe_flush || !div_can_run) begin
             div_signed_sent <= 1'b0;
         end
         else if (es_allowin) begin
@@ -144,7 +211,7 @@ module EXE_stage(
     end
 
     always @(posedge clk) begin
-        if (reset) begin
+        if (reset || pipe_flush || !div_can_run) begin
             div_unsigned_sent <= 1'b0;
         end
         else if (es_allowin) begin
@@ -229,8 +296,10 @@ module EXE_stage(
         : 4'b1111;
 
     // 除法等待结果，其他指令本级直接完成
-    assign es_ready_go =
-        (es_inst_div_w || es_inst_mod_w)
+     assign es_ready_go =
+        es_exc_valid
+        ? 1'b1
+        : (es_inst_div_w || es_inst_mod_w)
         ? div_signed_done
         : (es_inst_div_wu || es_inst_mod_wu)
         ? div_unsigned_done
@@ -277,7 +346,7 @@ module EXE_stage(
     // 有符号除法器
     div_signed u_div_signed (
         .aclk                   (clk),
-        .aresetn                (~reset),
+        .aresetn                (div_ip_aresetn),
 
         .s_axis_divisor_tvalid   (div_signed_req),
         .s_axis_divisor_tdata    (es_alu_src2),
@@ -292,7 +361,7 @@ module EXE_stage(
     // 无符号除法器
     div_unsigned u_div_unsigned (
         .aclk                   (clk),
-        .aresetn                (~reset),
+        .aresetn                (div_ip_aresetn),
 
         .s_axis_divisor_tvalid   (div_unsigned_req),
         .s_axis_divisor_tdata    (es_alu_src2),
@@ -308,13 +377,21 @@ module EXE_stage(
      * 数据RAM访问在EXE级发起。
      * Block RAM经过时钟后返回的数据将在MEM级使用。
      */
-    assign data_sram_en =
-           es_valid && es_ready_go && ms_allowin;
+    assign es_exc_valid = ds_to_es_meta_r[83];
+
+    assign es_mem_req_ok =
+        !reset && !pipe_flush && !ms_ex_pending &&
+        es_valid && es_ready_go && ms_allowin &&
+        !es_exc_valid &&
+        (es_res_from_mem || es_mem_we);
+
+
+    assign data_sram_en = es_mem_req_ok;
 
     assign data_sram_we =
-           (es_mem_we && es_valid && ms_allowin)
-            ? es_store_we
-            : 4'b0000;
+        (es_mem_req_ok && es_mem_we)
+        ? es_store_we
+        : 4'b0000;
 
     assign data_sram_addr  = es_alu_result;
     assign data_sram_wdata =
@@ -345,7 +422,10 @@ module EXE_stage(
     assign es_to_ds_bus = {
         es_valid,          // 1位：EXE级是否存在有效指令
         es_res_from_mem,   // 1位：结果是否需要从内存读取
-        es_gr_we,          // 1位：是否写通用寄存器
+        (es_gr_we &&
+         !es_exc_valid &&
+         (ds_to_es_meta_r[163:162] == 2'b00) &&
+         (ds_to_es_meta_r[33:32] == 2'b00)),         // 1位：是否写通用寄存器
         es_dest,           // 5位：目的寄存器号
         es_result,      // 32位：ALU计算结果
         es_ready_go

@@ -61,6 +61,8 @@ module WB_stage(
     wire        ws_gr_we;
     wire [ 4:0] ws_dest;
     wire [31:0] ws_final_result;
+    wire [1:0]  ws_csr_op;
+    wire [31:0] ws_writeback_result;
     wire [31:0] ws_pc;
 
     // 最终寄存器堆写使能
@@ -78,13 +80,21 @@ module WB_stage(
     assign ws_ready_go = 1'b1;
 
     // WB为空，或者当前写回已经完成
-    assign ws_allowin =
-           !ws_valid ||
-           ws_ready_go;
+   assign ws_allowin =
+        (!ws_valid || ws_ready_go) &&
+        !wb_ex && !ertn_flush;
+
+    assign ws_csr_op = ms_to_ws_meta_r[163:162];
+
+    assign ws_writeback_result =
+        (ws_csr_op != 2'b00) ? csr_rvalue : ws_final_result;
 
     // 维护WB级有效位
     always @(posedge clk) begin
         if (reset) begin
+            ws_valid <= 1'b0;
+        end
+        else if (wb_ex || ertn_flush) begin
             ws_valid <= 1'b0;
         end
         else if (ws_allowin) begin
@@ -106,31 +116,33 @@ module WB_stage(
      * 2. 当前WB级指令有效
      */
     assign rf_we =
-           ws_gr_we && ws_valid;
+        ws_gr_we && ws_valid &&
+        !reset && !wb_ex && !ertn_flush &&
+        (ws_dest != 5'd0);
 
     // 送回ID级中的寄存器堆
     // ws_dest指向具体的哪个寄存器
     assign ws_to_rf_bus = {
         rf_we,           // 1位
         ws_dest,         // 5位
-        ws_final_result  // 32位
+        ws_writeback_result  // 32位
     };
 
     // 送给测试平台的Trace信息
     assign debug_wb_pc       = ws_pc;
     assign debug_wb_rf_we    = {4{rf_we}};
     assign debug_wb_rf_wnum  = ws_dest;
-    assign debug_wb_rf_wdata = ws_final_result;
+    assign debug_wb_rf_wdata = ws_writeback_result;
 
    // 向ID级反馈WB级的目的寄存器和最终结果
     assign ws_to_ds_bus = {
         ws_valid,          // 1位：WB级是否存在有效指令
-        ws_gr_we,          // 1位：是否写通用寄存器
+        rf_we,          // 1位：是否写通用寄存器
         ws_dest,           // 5位：目的寄存器号
-        ws_final_result    // 32位：最终写回结果
+        ws_writeback_result    // 32位：最终写回结果
     };
 
-        assign ws_valid_for_ctrl = ws_valid;
+    assign ws_valid_for_ctrl = ws_valid;
 
     assign ws_serializing =
         ws_valid &&
@@ -139,18 +151,27 @@ module WB_stage(
           ms_to_ws_meta_r[34] ||
          (ms_to_ws_meta_r[33:32] != 2'b00));
 
-    // G1骨架：新增操作暂不生效
-    assign csr_num       = 14'b0;
-    assign csr_we        = 1'b0;
-    assign csr_wmask     = 32'b0;
-    assign csr_wvalue    = 32'b0;
+    // CSR访问与异常/返回提交
+    assign csr_num = ms_to_ws_meta_r[161:148];
+    assign csr_we =
+        ws_valid && !reset && !wb_ex && !ertn_flush &&
+        ((ws_csr_op == 2'b10) || (ws_csr_op == 2'b11));
 
-    assign wb_ex         = 1'b0;
-    assign wb_ecode      = 6'b0;
-    assign wb_esubcode   = 9'b0;
-    assign wb_pc         = ws_pc;
-    assign wb_badv_valid = 1'b0;
-    assign wb_badv       = 32'b0;
-    assign ertn_flush    = 1'b0;
+    assign csr_wmask  = ms_to_ws_meta_r[147:116];
+    assign csr_wvalue = ms_to_ws_meta_r[115:84];
+
+    assign wb_ex =
+        ws_valid && ms_to_ws_meta_r[83] && !reset;
+
+    assign wb_ecode    = ms_to_ws_meta_r[82:77];
+    assign wb_esubcode = ms_to_ws_meta_r[76:68];
+    assign wb_pc       = ws_pc;
+
+    assign wb_badv_valid = ms_to_ws_meta_r[67];
+    assign wb_badv =
+        wb_badv_valid ? ms_to_ws_meta_r[66:35] : 32'b0;
+    assign ertn_flush =
+        ws_valid && ms_to_ws_meta_r[34] &&
+        !ms_to_ws_meta_r[83] && !reset;
 
 endmodule

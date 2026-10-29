@@ -53,10 +53,15 @@ module ID_stage(
     // 当前ID级是否完成工作
     wire ds_ready_go;
 
+    wire older_valid;
+    wire serial_inflight;
+    wire ds_serial_wait;
+
     // 保存IF传来的总线
     reg [`FS_TO_DS_BUS_WD-1:0] fs_to_ds_bus_r;
 
     reg [`EXC_BUS_WD-1:0] fs_to_ds_ex_r;
+
 
     // ID级当前使用的指令和PC
     wire [31:0] ds_inst;
@@ -128,6 +133,14 @@ module ID_stage(
     wire inst_mod_w;
     wire inst_div_wu;
     wire inst_mod_wu;
+
+    // ex8：CSR读取指令
+    wire inst_csrrd;
+    wire inst_csrwr;
+    wire inst_csrxchg;
+    wire inst_syscall;
+    wire [`EXC_BUS_WD-1:0] ds_exc;
+    wire inst_ertn;
 
     wire inst_ld_w;
     wire inst_st_w;
@@ -444,6 +457,29 @@ module ID_stage(
         op_21_20_d[2'h2]  &&
         op_19_15_d[5'h03];
 
+    // csrrd译码
+    assign inst_csrrd =
+        (ds_inst[31:24] == 8'h04) &&
+        (rj == 5'd0);
+
+    // csrwr译码
+    assign inst_csrwr =
+        (ds_inst[31:24] == 8'h04) &&
+        (rj == 5'd1);
+
+    // csrxchg译码
+    assign inst_csrxchg =
+        (ds_inst[31:24] == 8'h04) &&
+        (rj != 5'd0) &&
+        (rj != 5'd1);
+
+    // syscall译码
+    assign inst_syscall =
+        (ds_inst[31:15] == 17'h00056);
+
+    assign inst_ertn =
+        (ds_inst == 32'h06483800);
+
     assign inst_sub_w =
         op_31_26_d[6'h00] &&
         op_25_22_d[4'h0]  &&
@@ -528,7 +564,27 @@ module ID_stage(
 
     // 等待加载数据或EXE尚未完成的相关结果
     assign ds_ready_go =
-        !load_use_hazard && !es_wait_hazard;
+        !load_use_hazard &&
+        !es_wait_hazard &&
+        !ds_serial_wait;
+
+    // 后三级是否还有较老指令
+    assign older_valid =
+        es_valid_for_ctrl ||
+        ms_valid_for_ctrl ||
+        ws_valid_for_ctrl;
+
+    // 后三级是否有尚未提交的特殊指令
+    assign serial_inflight =
+        es_serializing ||
+        ms_serializing ||
+        ws_serializing;
+
+    // CSR指令发射前等待较老指令完成
+    assign ds_serial_wait =
+        serial_inflight ||
+        ((inst_csrrd || inst_csrwr || inst_csrxchg ||
+          inst_ertn || ds_exc[48]) && older_valid);
 
     // ID为空，或者当前指令可以送给EXE时，允许IF送入新指令
     assign ds_allowin =
@@ -586,8 +642,32 @@ module ID_stage(
 
     };
 
-    // 接口骨架阶段：关闭所有新增操作
-    assign ds_to_es_meta = {`PIPE_META_WD{1'b0}};
+    // 优先保留IF已有异常，否则识别系统调用异常
+    assign ds_exc =
+        fs_to_ds_ex_r[48] ? fs_to_ds_ex_r :
+        inst_syscall ? {1'b1, 6'h0b, 9'b0, 1'b0, 32'b0} :
+                       {`EXC_BUS_WD{1'b0}};
+
+    // 按TEAM-ABI-1.0固定顺序打包元数据
+    assign ds_to_es_meta = {
+        inst_csrrd   ? 2'b01 :
+        inst_csrwr   ? 2'b10 :
+        inst_csrxchg ? 2'b11 : 2'b00, // csr_op
+
+        (inst_csrrd || inst_csrwr || inst_csrxchg)
+            ? ds_inst[23:10] : 14'b0, // csr_num
+
+        inst_csrwr   ? 32'hffffffff :
+        inst_csrxchg ? rj_value : 32'b0, // csr_wmask
+
+        (inst_csrwr || inst_csrxchg)
+            ? rkd_value : 32'b0,         // csr_wvalue
+
+        ds_exc,                          // exc
+        inst_ertn,                           // ertn
+        2'b00,                          // cnt_op
+        32'b0                           // cnt_value
+    };
     
     assign br_bus = {br_taken, br_target};
 
@@ -705,7 +785,9 @@ module ID_stage(
         inst_bgeu |
         inst_st_w |
         inst_st_b |
-        inst_st_h;
+        inst_st_h |
+        inst_csrwr|
+        inst_csrxchg;
 
     // jirl、bl和pcaddu12i的ALU第一个操作数是PC
     assign src1_is_pc =
@@ -760,7 +842,9 @@ module ID_stage(
         !inst_bltu &&
         !inst_bgeu &&
         !inst_b    &&
-        !inst_st_h ;
+        !inst_st_h &&
+        !inst_syscall &&
+        !inst_ertn;
 
     // 存储指令需要写数据RAM
     assign mem_we = inst_st_w | inst_st_b | inst_st_h;
@@ -826,7 +910,8 @@ module ID_stage(
         inst_div_w   |
         inst_mod_w   |
         inst_div_wu  |
-        inst_mod_wu
+        inst_mod_wu  |
+        inst_csrxchg
         ;
 
     // 使用第二个寄存器操作数的指令
@@ -857,7 +942,9 @@ module ID_stage(
         inst_div_w |
         inst_mod_w |
         inst_div_wu|
-        inst_mod_wu;
+        inst_mod_wu|
+        inst_csrwr |
+        inst_csrxchg;
 
 
     // 源寄存器1与后三级目的寄存器匹配
@@ -967,7 +1054,7 @@ module ID_stage(
             inst_bl   ||
             inst_b
         ) && ds_valid && ds_ready_go
-          && es_allowin && !pipe_flush;
+          && es_allowin && !pipe_flush && !ds_exc[48];
 
     //两类目标地址的计算方法
     assign br_target =

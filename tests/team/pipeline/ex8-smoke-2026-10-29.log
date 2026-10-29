@@ -1,0 +1,43 @@
+#-----------------------------------------------------------
+# xsim v2023.2 (64-bit)
+# SW Build 4029153 on Fri Oct 13 20:14:34 MDT 2023
+# IP Build 4028589 on Sat Oct 14 00:45:43 MDT 2023
+# SharedData Build 4025554 on Tue Oct 10 17:18:54 MDT 2023
+# Start of session at: Thu Oct 29 21:48:38 2026
+# Process ID: 26524
+# Current directory: C:/Users/feng/AppData/Local/Temp/la32-ex8-smoke-278edcf4ef0f4f9ebbe75665b8ba0398
+# Command line: xsim.exe -mode tcl -source {xsim.dir/ex8_smoke/xsim_script.tcl}
+# Log file: C:/Users/feng/AppData/Local/Temp/la32-ex8-smoke-278edcf4ef0f4f9ebbe75665b8ba0398/xsim.log
+# Journal file: C:/Users/feng/AppData/Local/Temp/la32-ex8-smoke-278edcf4ef0f4f9ebbe75665b8ba0398\xsim.jou
+# Running On: LAPTOP-BLV935B0, OS: Windows, CPU Frequency: 2419 MHz, CPU Physical cores: 16, Host memory: 16890 MB
+#-----------------------------------------------------------
+source xsim.dir/ex8_smoke/xsim_script.tcl
+# xsim {ex8_smoke} -autoloadwcfg -runall
+Time resolution is 1 ps
+run -all
+CHECK pc=1c000000 r5=00000123
+CHECK pc=1c000004 r5=00000000
+CHECK pc=1c000008 r6=00000123
+CHECK pc=1c00000c r7=00000124
+CHECK pc=1c000010 r8=000000ff
+CHECK pc=1c000014 r9=00000055
+CHECK pc=1c000018 r9=00000123
+CHECK pc=1c00001c r10=00000155
+CHECK pc=1c000024 r11=00000000
+CHECK pc=1c00002c r12=00000066
+CHECK pc=1c000030 r12=00000000
+CHECK pc=1c000034 r13=00000000
+CHECK pc=1c000038 r14=1c000000
+CHECK pc=1c00003c r14=1c000100
+CHECK pc=1c000040 r14=00000000
+CHECK pc=1c000044 r20=00000000
+CHECK pc=1c000048 r21=00000055
+CHECK pc=1c000100 r23=1c00004c
+CHECK pc=1c000104 r24=000b0000
+CHECK pc=1c000108 r23=1c000050
+CHECK pc=1c00010c r23=1c00004c
+CHECK pc=1c000054 r31=00000777
+EX8_SMOKE_PASS write_checks=22 exceptions=1 returns=1 stores=1
+$finish called at time : 1240 ns : File "E:/LA32/la32-computer-organization-lab/tests/team/pipeline/tb_ex8_smoke.sv" Line 105
+exit
+INFO: [Common 17-206] Exiting xsim at Thu Oct 29 21:48:40 2026...

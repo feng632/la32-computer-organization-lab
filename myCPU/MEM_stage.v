@@ -151,7 +151,10 @@ module MEM_stage(
     // 向ID级反馈MEM级的目的寄存器和最终结果
     assign ms_to_ds_bus = {
         ms_valid,          // 1位：MEM级是否存在有效指令
-        ms_gr_we,          // 1位：是否写通用寄存器
+        (ms_gr_we &&
+         !es_to_ms_meta_r[83] &&
+         (es_to_ms_meta_r[163:162] == 2'b00) &&
+         (es_to_ms_meta_r[33:32] == 2'b00)),         // 1位：是否写通用寄存器
         ms_dest,           // 5位：目的寄存器号
         ms_final_result    // 32位：最终结果
     };
