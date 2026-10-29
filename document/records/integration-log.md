@@ -24,7 +24,9 @@
 | 阶段 | G0 |
 | 日期 | 2026-10-29 |
 | 分支 | `integration-ex8-ex9`（本地新建，未推送） |
-| HEAD | `1516744e0330645a03809148038ab4ea4ff5eeaf` |
+| HEAD（阶段起点） | `1516744e0330645a03809148038ab4ea4ff5eeaf` |
+| **G0 阶段提交** | **`0f48184`**（8 文件 +2139/-1366） |
+| G0 标签 | `baseline-ex7`（附注注明本地功能通过、时序未通过、不含线上） |
 | 基线提交 | `48dc551bbc685e5351a057b7a26c8115bc7ddcf6` |
 | 文档提交 | `1516744`（parent 为 `48dc551`，fast-forward 合入） |
 | 接口版本 | TEAM-ABI-1.0 |
@@ -143,6 +145,18 @@
 
 **这是 ex7 就存在的时序债，ex8/ex9 不得据此声称自己"时序退化"，也不得用功能通过掩盖它。** G6 做时序检查时以此表为对照基线。
 
+**处理决定（2026-10-29，团队 C 确认）**：
+
+本次**不修时序，只如实记录**。理由：课程验收以 ex8/ex9 功能正确性为主；修时序需要改动流水线切分或给组合路径加寄存器，会改变时序语义与既有验证结论，风险大于收益。
+
+由此产生三条约束：
+
+1. G6 的综合实现必须以 **WNS −1.127 ns / TNS −208.302 ns / 566 端点** 为对照基线，不得另立标准；
+2. 若 G6 结果差于上述值，**差值部分属于 ex8/ex9 新引入**，不得归入"继承"；
+3. 报告、标签、交付说明中，**功能与时序分栏声明**，功能 PASS 不得用于暗示时序通过。
+
+**后续若要优化（不在本次范围）**：优先检查 164 位 meta 总线的组合穿透深度、CSR 组合读路径（`csr_rvalue` 直接组合进 WB 写回）、以及 `has_int` 从 CSR 组合进 ID 的路径——这三条是本次新增的深组合链。
+
 ### 3.8 未关闭问题
 
 | 编号 | 问题 | 负责人 | 状态 |
@@ -164,13 +178,58 @@
 
 ## G1 接口骨架
 
-**状态：未开始**
+**状态：进行中**（RTL 已改完并通过静态检查，待 Vivado elaborate 与 ex7 回归）
 
-前置条件：
-- A 的 `csr.v` 在 `origin/csr` 最新提交 `8068839`（2026-10-29 12:24 核对）中仍只有端口与寄存器声明，`assign`/`always` 计数为 **0**，六路输出（`csr_rvalue`、`ex_entry`、`ertn_entry`、`has_int`、`counter_value`、`tid_value`）悬空，不满足 05 的"csr 壳体与常量输出"口径；
-- B 的骨架（`80b2ca8`）已提交，自述"待顶层连接和验证"，新增端口在 `mycpu_top.v` 中尚无连接。
+### G1.1 合并 A / B 骨架
 
-计划改动（C 负责，四文件）：`myCPU/IF_stage.v`、`myCPU/mycpu_top.v`、`soc_verify/soc_bram/rtl/soc_lite_top.v`、`loongson.xpr`。
+| 提交 | 内容 |
+|---|---|
+| `c0ae694` | 合并 `origin/prep/b-g1-interface`（`80b2ca8`）：ID/EXE/MEM/WB/mycpu_head 新增端口与 meta 直通，5 文件 +146/-7 |
+| `8377221` | 合并 `origin/csr`（`8068839`）：新增 `myCPU/csr.v`，45 行（仅端口与寄存器声明） |
+
+两次合并均无冲突。
+
+### G1.2 本轮改动（C 负责的三处）
+
+| 文件 | 改动 |
+|---|---|
+| `myCPU/IF_stage.v` | 新增 `pipe_flush`、`redirect_pc[31:0]`、`fs_to_ds_ex[48:0]` 端口；新增重定向缓存 `redirect_pending`/`redirect_pc_r`；`fetch_req = to_fs_valid && fs_allowin && !pipe_flush` 控制请求发出；`fs_valid` 改为仅在 `fetch_req` 的下一拍置 1；`fs_to_ds_valid` 增加 `!pipe_flush` |
+| `myCPU/mycpu_top.v` | 新增顶层端口 `hw_int_in[7:0]`；例化 `csr`（20 端口）；组合产生 `pipe_flush = wb_ex \|\| ertn_flush`、`redirect_pc = wb_ex ? ex_entry : ertn_entry`；`pipe_flush` 送 IF/ID/EXE/MEM（不送 WB）；接齐 49/164 位元数据链路与 7 个 ctrl 信号 |
+| `soc_verify/soc_bram/rtl/soc_lite_top.v` | `mycpu_top` 例化处补 `.hw_int_in(8'b0)`，显式接 0 不悬空 |
+
+设计依据与逐拍推演见 C 本地笔记（不进版本库）。
+
+### G1.3 静态检查结果
+
+**端口完整性核对**（脚本比对模块定义与例化连接）：
+
+| 模块 | 声明端口 | 实际连接 | 缺失 | 多余 |
+|---|---:|---:|---|---|
+| `IF_stage` | 14 | 14 | 无 | 无 |
+| `ID_stage` | 23 | 23 | 无 | 无 |
+| `EXE_stage` | 20 | 20 | 无 | 无 |
+| `MEM_stage` | 16 | 16 | 无 | 无 |
+| `WB_stage` | 27 | 27 | 无 | 无 |
+| `csr` | 20 | 20 | 无 | 无 |
+
+**Vivado `xvlog` 语法分析**：14 个 Verilog 文件全部通过，**0 ERROR、0 WARNING**。
+
+**`xelab mycpu_top`**：仅报两个 `div_signed` / `div_unsigned` 模块未找到——两个除法器 IP 为 VHDL 模型，命令行环境未编译，在 Vivado 工程内由 IP 提供。**除此外无任何错误或位宽警告。**
+
+**结论：Verilog 侧连接与位宽合法；完整的模块解析需在 Vivado 工程内 elaborate 确认。**
+
+### G1.4 未完成项
+
+| 项 | 状态 |
+|---|---|
+| `csr.v` 加入 `loongson.xpr` Design Sources | 待做（Vivado GUI） |
+| Vivado Reload 后 elaborate | 待做 |
+| ex7 回归，`$finish` 应仍为 1376195 ns | 待做 |
+| A 的六路常量输出 | 未交付 |
+
+### G1.5 已知隐患
+
+A 的 `csr.v` 六路输出未驱动，接顶层后为 Z。逐条确认本阶段不影响 ex7 回归：`csr_rvalue`/`tid_value` 未被 B 的 WB 消费；`has_int` 未进入 ID 逻辑；`counter_value` 在 `cnt_op` 恒 0 时不使用；`ex_entry`/`ertn_entry` 只在 `pipe_flush` 有效时被锁存，而本阶段 `pipe_flush` 恒 0。**A 补齐后必须重跑 G1 回归。**
 
 判据：`pipe_flush` 恒 0 时 ex7 结果与 G0 逐拍一致。
 

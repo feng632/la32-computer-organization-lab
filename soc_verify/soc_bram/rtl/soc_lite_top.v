@@ -141,6 +141,7 @@ wire [31:0] conf_rdata;
 mycpu_top cpu(
     .clk              (cpu_clk   ),
     .resetn           (cpu_resetn),  //low active
+    .hw_int_in        (8'b0      ),  //ex9外部硬中断；本SoC无中断源，显式接0，不得悬空
 
     .inst_sram_en     (cpu_inst_en   ),
     .inst_sram_we     (cpu_inst_we   ),
