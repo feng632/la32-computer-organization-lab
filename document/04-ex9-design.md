@@ -25,15 +25,19 @@ has_int只在ID具备发射条件、旧CSR/返回影响已清除时采样，异�
 
 | 名称 | 编号 | 实现与可写范围 | 团队复位 |
 |---|---|---|---|
-| ECFG | 0x004 | LIE[12:0]中实现位[11]、[9:0]可写；VS及其他位固定0 | 0 |
+| ECFG | 0x004 | LIE[12:11]、LIE[9:0]可读写；bit10及[31:13]恒0；软件可写掩码0x00001bff | 0 |
 | ESTAT增量 | 0x005 | IS[9:2]采样8个硬中断；IS[11]定时器；IS[10]、IS[12]固定0 | 软件/定时中断0 |
-| BADV | 0x007 | 32位只读，wb_ex且wb_badv_valid更新 | 0 |
+| BADV | 0x007 | 32位可读写，支持CSRWR/CSRXCHG掩码写；wb_ex且wb_badv_valid时由硬件记录错误地址，硬件更新优先 | 0 |
 | TID | 0x040 | 32位软件可写 | 0 |
 | TCFG | 0x041 | En[0]、Periodic[1]、InitVal[31:2]软件可写 | 0 |
 | TVAL | 0x042 | 32位倒计时只读 | 0xffffffff |
 | TICLR | 0x044 | 读零；有效掩码写bit0=1清定时中断 | 0 |
 
 has_int固定为CRMD.IE与ESTAT.IS/ECFG.LIE的相应实现位共同判断；不考虑核间中断，不做向量入口，ex_entry仍只取EENTRY。
+
+不实现核间中断时，ESTAT.IS[12]固定0，ECFG.LIE[12]仍保留软件可读写行为。未连接中断源与删除控制位读写能力不是一回事；LIE[12]=1也不会凭空触发中断。
+
+BADV更新优先级：reset清0；`wb_ex && wb_badv_valid`写入wb_badv；否则合格的普通CSR写BADV按掩码更新；其余保持。SYS/BRK/INE/INT等不提供错误地址的异常不清BADV。普通CSR写由02的csr_we资格条件保证与异常/ERTN互斥，不能把该寄存器“可由硬件更新”理解为“软件只读”。
 
 硬中断来自同步hw_int_in，按时钟采样；软件中断仅ESTAT[1:0]由CSR写改变；定时中断独立保持到清除。不同位分别更新，不能因写软件位覆盖同拍硬件状态。
 

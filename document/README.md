@@ -19,8 +19,11 @@
 | [C 的 AI 任务书](roles/C-integration.md) | C 可直接交给本人的 AI | C |
 | [记录模板](07-records.md) | 交付、问题、接口变更、阶段验收 | 按需填写 |
 | [来源与范围](08-sources.md) | 课程要求、官方参考、未覆盖功能 | 全员及各自 AI |
+| [权限勘误与复核](09-errata.md) | BADV、ECFG纠正及其他条目核对结论 | 全员，尤其A |
 
 `baseline.json` 保存基线及文件 SHA-256，`interface-v1.json` 保存可检查的位宽和枚举。它们用于检查一致性，不代表 RTL 已实现。
+
+`csr-registers-v1.json`固定软件可写掩码、只读/写1属性及课程简化例外。2026-10-29勘误已修正BADV和ECFG.LIE[12]权限；TEAM-ABI-1.0的端口、164/49位布局保持不变。开发分支需同步本次勘误提交，不能继续只用最初1516744的文档。
 
 有Python和Git的环境可在仓库根目录运行 `python document/tools/check_documents.py`。这是只读的文档、位段、基线哈希检查，不调用Vivado、不编译CPU。没有Python不影响阅读和实施。
 
