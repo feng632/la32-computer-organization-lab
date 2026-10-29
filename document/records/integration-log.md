@@ -293,6 +293,23 @@ PASS: documentation links/fences, ABI bit layout, fixed baseline hashes, CSR per
 | G1-ISS-6 | **`ECFG[12]` 未实现**：`14'h004: ECFG[11:0] <= ...` 只赋值低 12 位，`ECFG[12]` 恒为复位值 0，软件写不进去 | `c8a5b33` 勘误要求 LIE[12:11] 均可读写，掩码 `0x00001bff`。A13 测试必然失败 |
 | G1-ISS-7 | `has_int` 用 `ESTAT[11:0] & ECFG[11:0]`，应为 `[12:0]` | 与 G1-ISS-6 同源；IS[12] 固定 0，故当前不影响功能，但需一并修正保持一致 |
 
+**G1-ISS-6 已有实测证据**：C 编写最小复现 `tests/team/integration/csr_probe/tb_ecfg12.v`，直接驱动 `csr` 的 20 个端口，用 `xsim` 运行（日志 `probe_ecfg12_2026-10-29.log`）。结果：
+
+```
+[复位]     ECFG = 0x00000000
+[写bit12]  ECFG = 0x00000000  (期望 0x00001000)
+  FAIL: LIE[12] 写不进去，读回 bit12 = 0
+[全1写入]  ECFG = 0x00000bff  (期望 0x00001bff)
+  PASS: bit10 恒 0
+  PASS: [31:13] 恒 0
+  PASS: LIE[11] 可读写
+[ESTAT]    = 0x00000000  (IS[12] 恒 0)  PASS
+[has_int]  = 0  (CRMD.IE 复位 0)        PASS
+结果：1 项 FAIL
+```
+
+全 1 写入得 `0x0bff`、期望 `0x1bff`，差值正是 `0x1000`（bit12），与静态分析结论一致。**本项退回 A 修复，C 不代改。**
+
 **静态检查**：Vivado `xvlog` 对 14 个文件重新分析，**0 ERROR / 0 WARNING**。
 
 **待做**：ex7 回归。判据仍是 46/46 PASS 且 `$finish` 为 **1376195 ns**。理论上 `csr` 的全部输出在 ex7 场景下不进入任何有效逻辑路径（`csr_num` 恒 0 → `csr_rvalue`=CRMD=0x8 但不被 WB 消费；`has_int`=0；`cnt_op` 恒 NONE 故 `counter_value` 不被 EXE 使用），预期回归通过，但**必须实跑确认，不得以推理代替**。
