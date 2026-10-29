@@ -248,6 +248,27 @@ A 的 `csr.v` 六路输出未驱动，接顶层后为 Z。逐条确认本阶段�
 
 **A 补齐后必须重跑 G1 回归，不得直接进入 G2 验收。**
 
+### G1.7 规范同步（main `c8a5b33`）
+
+2026-10-29 合并 `origin/main` 的 CSR 权限勘误，merge 提交 `d8001bf`，**无冲突**（改动全在 `document/`，与集成分支的 `document/records/` 无交集）。
+
+**结论：TEAM-ABI-1.0 的端口、位宽、字段位置不变，G1 的 RTL 与回归结论不受影响。** 勘误只涉及软件写权限，不涉及接口。
+
+| 项 | 变更 | 负责人 | 对 C 的影响 |
+|---|---|---|---|
+| `BADV` | 32 位只读 → **可读写**，支持 CSRWR/CSRXCHG 掩码写；`wb_ex && wb_badv_valid` 时硬件更新优先 | A | G2 测试需覆盖 BADV 掩码写与读回（A11/A12） |
+| `ECFG.LIE[12]` | 因不实现 IPI 而固定 0 → **保留读写**，软件可写掩码 `0x00001bff`；ESTAT.IS[12] 仍固定 0 | A | G5 测试需验证 LIE[12] 可读回且不触发中断（A13） |
+| 新增文档 | `09-errata.md`（逐条依据与核对结论）、`csr-registers-v1.json`（机器可读权限表） | 全队 | A14 逐 CSR 权限检查的依据 |
+| 新增测试 | A11～A14；A08/A09 补关闭/重配置/同拍 TICLR 边界 | A | A 执行，C 在阶段集成时核对 |
+
+`check_documents.py` 同时升级，新增 CSR 权限回归检查。合并后运行结果：
+
+```
+PASS: documentation links/fences, ABI bit layout, fixed baseline hashes, CSR permission regression checks.
+```
+
+**需转达 A**：本次不是接口变更，但 A 的实现范围扩大两项（BADV 软件写路径、ECFG 掩码更正），且 A08/A09 的边界用例要求加严。B 的 `prep/b-g1-interface` WIP 代码不并入 main，保持原样。
+
 ---
 
 ## G2 ～ G6
