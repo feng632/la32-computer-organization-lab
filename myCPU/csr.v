@@ -1,0 +1,45 @@
+module csr(
+    // 状态在上升沿更新；组合读不需要等待一拍。
+    input wire          clk,          // 顶层时钟，所有 CSR 状态使用 posedge clk
+    input wire          reset,        // 同步高有效复位：上升沿看到 1 才复位
+
+    // 普通 CSR 指令：ID 生成编号/掩码/写值，随指令传至 WB，由 WB 驱动这些端口。
+    input wire [13:0]   csr_num,      // 选中的 CSR 编号，如 ERA=14'h006；不是 GRF 寄存器号
+
+    input wire          csr_we,       // WB 普通写提交：为 1 时在本次上升沿写入；读指令为 0
+    input wire [31:0]   csr_wmask,    // 逐位写使能：1 修改、0 保留；CSRWR 全 1，CSRXCHG 取 GRF[rj]
+    input wire [31:0]   csr_wvalue,   // 待写数据：CSRWR/CSRXCHG 的原 GRF[rd] 值，不是 CSR 旧值
+
+    // 异常由流水线检测并送至 WB 提交；以下专用通路不使用 csr_num/wmask/wvalue。
+    input wire          wb_ex,        // WB 异常提交脉冲；上升沿保存 ERA/PRMD/ESTAT 并清 CRMD.PLV/IE
+    input wire [5:0]    wb_ecode,      // wb_ex 有效时的异常主编码，写 ESTAT[21:16]，如 SYS=6'h0b
+    input wire [8:0]    wb_esubcode,   // wb_ex 有效时的异常子编码，写 ESTAT[30:22]；本实验所列异常为 0
+    input wire [31:0]   wb_pc,         // 当前 WB 异常指令的 PC，保存到 ERA；不是 PC+4 或错误数据地址
+    input wire          wb_badv_valid, // EX9：与 wb_ex 同为 1 才更新 BADV；不是整条异常的有效位
+    input wire [31:0]   wb_badv,       // EX9：ADEF 为错误取指 PC，ALE 为错误访存地址；EX8 暂不使用
+    input wire          ertn_flush,   // WB 的 ERTN 提交脉冲；上升沿将 PRMD 的 PPLV/PIE 恢复到 CRMD
+    input wire [7:0]    hw_int_in,     // EX9：顶层送入的已同步硬中断，采样到 ESTAT.IS[9:2]；EX8 接 0
+
+    // 下列输出为接口约定，当前骨架尚未实现驱动逻辑。
+    output wire [31:0]  csr_rvalue,    // csr_num 选中 CSR 的组合读值，未知编号读 0；WB 在写入沿采样旧值给 rd
+    output wire [31:0]  ex_entry,      // 组合输出 EENTRY：异常处理入口；顶层在 wb_ex 时让 IF 跳到这里
+    output wire [31:0]  ertn_entry,    // 组合输出 ERA：返回地址；顶层在 ertn_flush 时让 IF 跳转，不自动加 4
+    output wire         has_int,      // EX9：IE && 存在(IS & LIE)有效位，送 ID 判断中断；不等同 wb_ex，EX8 输出 0
+    output wire [63:0]  counter_value, // EX9：每拍自增的稳定计数器，送 EXE 采样；不是 TVAL 倒计时，EX8 输出 0
+    output wire [31:0]  tid_value     // EX9：TID 寄存器值，供 WB 执行 RDCNTID 写回；EX8 输出 0
+
+);
+    // 同一字段的更新优先级：reset > wb_ex > ertn_flush > 普通 CSR 写入。
+    // 普通写的有效掩码 = csr_wmask & 本 CSR 的可写位掩码；只读/保留位不能任意写入。
+    // 异常可在同一上升沿更新多个 CSR；软件一次只写 csr_num 选中的一个。
+    reg [31:0] CRMD;    // 0x000 当前模式：PLV[1:0]、IE[2]可写；本方案 DA[3]=1，其余0，复位为8
+    reg [31:0] PRMD;    // 0x001 异常前模式：PPLV[1:0]、PIE[2]保存旧 PLV/IE，供 ERTN 恢复
+    reg [31:0] ESTAT;   // 0x005 异常状态：软件可写 IS[1:0]；异常硬件更新 Ecode[21:16]/EsubCode[30:22]
+    reg [31:0] ERA;     // 0x006 异常返回地址：异常时保存 wb_pc；软件可改，如跳过 syscall 时加4
+    reg [31:0] EENTRY;  // 0x00c 软件设置的异常入口：仅[31:6]可写，低6位固定0，异常本身不改它
+    reg [31:0] SAVE0;   // 0x030 软件临时保存数据，全32位可读写；硬件不自动向这里保存 GRF
+    reg [31:0] SAVE1;   // 0x031 同 SAVE0，各自独立存储
+    reg [31:0] SAVE2;   // 0x032 同 SAVE0，各自独立存储
+    reg [31:0] SAVE3;   // 0x033 同 SAVE0，各自独立存储
+    
+endmodule
