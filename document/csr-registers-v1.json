@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "interface_version": "TEAM-ABI-1.0",
+  "revision": "2026-10-29-permission-errata",
+  "authority": "Course LA32R reference manual v1.03; course-guide simplifications explicitly noted",
+  "registers": [
+    {
+      "name": "CRMD",
+      "address": "0x000",
+      "phase": "ex8",
+      "software_rw_mask": "0x00000007",
+      "software_w1_mask": "0x00000000",
+      "architecture_rw_mask": "0x000001ff",
+      "scope_note": "Address mode fields fixed per course guide 6.4.3: DA=1, PG/DATF/DATM=0; architectural fields are RW."
+    },
+    {
+      "name": "PRMD",
+      "address": "0x001",
+      "phase": "ex8",
+      "software_rw_mask": "0x00000007",
+      "software_w1_mask": "0x00000000",
+      "architecture_rw_mask": "0x00000007",
+      "scope_note": ""
+    },
+    {
+      "name": "ESTAT",
+      "address": "0x005",
+      "phase": "ex8+ex9",
+      "software_rw_mask": "0x00000003",
+      "software_w1_mask": "0x00000000",
+      "architecture_rw_mask": "0x00000003",
+      "scope_note": "Exception fields and hardware/timer interrupt status are hardware-updated, software read-only."
+    },
+    {
+      "name": "ERA",
+      "address": "0x006",
+      "phase": "ex8",
+      "software_rw_mask": "0xffffffff",
+      "software_w1_mask": "0x00000000",
+      "architecture_rw_mask": "0xffffffff",
+      "scope_note": ""
+    },
+    {
+      "name": "EENTRY",
+      "address": "0x00c",
+      "phase": "ex8",
+      "software_rw_mask": "0xffffffc0",
+      "software_w1_mask": "0x00000000",
+      "architecture_rw_mask": "0xffffffc0",
+      "scope_note": "Low six bits read zero; writes ignored."
+    },
+    {
+      "name": "SAVE0",
+      "address": "0x030",
+      "phase": "ex8",
+      "software_rw_mask": "0xffffffff",
+      "software_w1_mask": "0x00000000",
+      "architecture_rw_mask": "0xffffffff",
+      "scope_note": ""
+    },
+    {
+      "name": "SAVE1",
+      "address": "0x031",
+      "phase": "ex8",
+      "software_rw_mask": "0xffffffff",
+      "software_w1_mask": "0x00000000",
+      "architecture_rw_mask": "0xffffffff",
+      "scope_note": ""
+    },
+    {
+      "name": "SAVE2",
+      "address": "0x032",
+      "phase": "ex8",
+      "software_rw_mask": "0xffffffff",
+      "software_w1_mask": "0x00000000",
+      "architecture_rw_mask": "0xffffffff",
+      "scope_note": ""
+    },
+    {
+      "name": "SAVE3",
+      "address": "0x033",
+      "phase": "ex8",
+      "software_rw_mask": "0xffffffff",
+      "software_w1_mask": "0x00000000",
+      "architecture_rw_mask": "0xffffffff",
+      "scope_note": ""
+    },
+    {
+      "name": "ECFG",
+      "address": "0x004",
+      "phase": "ex9",
+      "software_rw_mask": "0x00001bff",
+      "software_w1_mask": "0x00000000",
+      "architecture_rw_mask": "0x00001bff",
+      "scope_note": "LIE[12] remains RW even when ESTAT.IS[12] is tied zero."
+    },
+    {
+      "name": "BADV",
+      "address": "0x007",
+      "phase": "ex9",
+      "software_rw_mask": "0xffffffff",
+      "software_w1_mask": "0x00000000",
+      "architecture_rw_mask": "0xffffffff",
+      "scope_note": "Qualified fault hardware update wins over software masked write; no-address exception preserves value."
+    },
+    {
+      "name": "TID",
+      "address": "0x040",
+      "phase": "ex9",
+      "software_rw_mask": "0xffffffff",
+      "software_w1_mask": "0x00000000",
+      "architecture_rw_mask": "0xffffffff",
+      "scope_note": ""
+    },
+    {
+      "name": "TCFG",
+      "address": "0x041",
+      "phase": "ex9",
+      "software_rw_mask": "0xffffffff",
+      "software_w1_mask": "0x00000000",
+      "architecture_rw_mask": "0xffffffff",
+      "scope_note": ""
+    },
+    {
+      "name": "TVAL",
+      "address": "0x042",
+      "phase": "ex9",
+      "software_rw_mask": "0x00000000",
+      "software_w1_mask": "0x00000000",
+      "architecture_rw_mask": "0x00000000",
+      "scope_note": "Read-only countdown value."
+    },
+    {
+      "name": "TICLR",
+      "address": "0x044",
+      "phase": "ex9",
+      "software_rw_mask": "0x00000000",
+      "software_w1_mask": "0x00000001",
+      "architecture_rw_mask": "0x00000000",
+      "scope_note": "Read zero; effective masked write-one clears timer interrupt."
+    }
+  ]
+}

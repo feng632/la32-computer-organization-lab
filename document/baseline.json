@@ -101,6 +101,12 @@
     {
       "course_relative_path": "计算机组成原理课程设计说明LA+2026.pptx",
       "sha256_raw": "44C215DC9A62DFD83822572051D77373158A7FB47954D95564289CD7CE3BA5CB"
+    },
+    {
+      "course_relative_path": "appendix_la/A01_龙芯架构32位精简版参考手册.pdf",
+      "sha256_raw": "C369C8E2CEEA115FC4AB9E692FD4CB30023BAFDB07E674CBFC88540F6AE0AD15",
+      "version": "1.03",
+      "role": "primary course architecture authority for permission review"
     }
   ],
   "external_course_images_not_redistributed": {

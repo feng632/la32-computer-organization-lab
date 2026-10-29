@@ -23,6 +23,10 @@ ex8 的 ESTAT 其他中断位固定零，has_int=0；ex9 再开放 04 的字段�
 
 写新值：对可写字段使用 `(old & ~effective_mask) | (csr_wvalue & effective_mask)`，effective_mask 是指令掩码与可写位掩码的交集。保持保留位和只读位规则。
 
+课程LA32R手册与课程允许的简化必须分开：手册CRMD.DA/PG/DATF/DATM本身是RW，本项目依据指导书6.4.3仅支持直接地址模式，将它们暂置常量；这不是把它们认定为架构只读。PLV/PPLV软件合法测试取0或3，不照搬新版LA64扩展。
+
+未知/未实现CSR的“写忽略”仅指不改变CSR状态；CSRWR/CSRXCHG仍按指令语义向非零rd返回读出的0。ex9 BADV等软件写权限详见04和`csr-registers-v1.json`。
+
 ## 3. WB 提交
 
 - `wb_ex = ws_valid && ws_exc.valid && !reset`。
