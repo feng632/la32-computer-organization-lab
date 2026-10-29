@@ -100,7 +100,7 @@ module csr(
                 case(csr_num)
                     14'h000:   CRMD[2:0]     <= (~csr_wmask[2:0] & CRMD[2:0]) | (csr_wmask[2:0] & csr_wvalue[2:0]);
                     14'h001:   PRMD[2:0]     <= (~csr_wmask[2:0] & PRMD[2:0]) | (csr_wmask[2:0] & csr_wvalue[2:0]);
-                    14'h004:   ECFG[11:0]    <= {(~csr_wmask[11] & ECFG[11]) | (csr_wmask[11] & csr_wvalue[11]), 1'b0, (~csr_wmask[9:0] & ECFG[9:0]) | (csr_wmask[9:0] & csr_wvalue[9:0])};
+                    14'h004:   ECFG[12:0]    <= {(~csr_wmask[12:11] & ECFG[12:11]) | (csr_wmask[12:11] & csr_wvalue[12:11]), 1'b0, (~csr_wmask[9:0] & ECFG[9:0]) | (csr_wmask[9:0] & csr_wvalue[9:0])};
                     14'h005:   ESTAT[1:0]    <= (~csr_wmask[1:0] & ESTAT[1:0]) | (csr_wmask[1:0] & csr_wvalue[1:0]);
                     14'h006:   ERA           <= (~csr_wmask & ERA) | (csr_wmask & csr_wvalue);
                     14'h007:   BADV          <= (~csr_wmask & BADV) | (csr_wmask & csr_wvalue);
@@ -157,7 +157,7 @@ module csr(
     assign ex_entry     = EENTRY;
     assign ertn_entry   = ERA;
     assign tid_value    = TID;
-    assign has_int      = CRMD[2] & (|(ESTAT[11:0] & ECFG[11:0]));
+    assign has_int      = CRMD[2] & (|(ESTAT[12:0] & ECFG[12:0]));
     assign counter_value= _STABLE_COUNTER;
 
     // CSR read selector
