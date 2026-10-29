@@ -310,6 +310,38 @@ PASS: documentation links/fences, ABI bit layout, fixed baseline hashes, CSR per
 
 全 1 写入得 `0x0bff`、期望 `0x1bff`，差值正是 `0x1000`（bit12），与静态分析结论一致。**本项退回 A 修复，C 不代改。**
 
+### G1.9 A 修复验证（`13dcd86` + `43628b7`）
+
+A 推送两个修复提交后，C 在合并前用两份测试交叉验证：
+
+| 提交 | 内容 |
+|---|---|
+| `13dcd86` | `ECFG[12:0]` 改为拼接 `{[12:11], 1'b0, [9:0]}`，bit12 进入掩码写通路 |
+| `43628b7` | `has_int` 改用 `ESTAT[12:0] & ECFG[12:0]` |
+
+**验证一：C 的探针** `tb_ecfg12.v`（日志 `probe_ecfg12_after_fix_2026-10-29.log`）
+
+```
+[写bit12]  ECFG = 0x00001000  (期望 0x00001000)  PASS: LIE[12] 可读写
+[全1写入]  ECFG = 0x00001bff  (期望 0x00001bff)  PASS: bit10 恒0 / [31:13] 恒0 / LIE[11] 可写
+[ESTAT]    = 0x00000000  PASS: IS[12] 恒 0
+结果：全部 PASS
+```
+
+**验证二：A 自己的测试平台** `tests/team/csr/tb_csr.sv`（日志 `a_suite_after_fix_2026-10-29.log`）
+
+```
+PASS A01 ... PASS A10
+CSR_SUMMARY groups_passed=10 groups_total=10 checks=414 failures=0
+CSR_TEST_PASS
+```
+
+对照 A 在 `871e15d` 上的记录（`tests/team/csr/result-2026-10-29.md`：9/10 组、`FAIL A03 ... actual=0x0bff expected=0x1bff`），缺口已闭合。
+
+**G1-ISS-6、G1-ISS-7 关闭。**
+
+注：A 的 `run.ps1` 在 PowerShell 5.1 上会因 `Start-Process` 的字典键冲突（`Key 'Path' being added: 'path'`）在调用工具阶段失败，与测试逻辑无关；本次由 C 按脚本原命令序列手工执行 xvlog/xelab/xsim 完成验证。该问题已告知 A，不影响其测试结论。
+
 **静态检查**：Vivado `xvlog` 对 14 个文件重新分析，**0 ERROR / 0 WARNING**。
 
 **待做**：ex7 回归。判据仍是 46/46 PASS 且 `$finish` 为 **1376195 ns**。理论上 `csr` 的全部输出在 ex7 场景下不进入任何有效逻辑路径（`csr_num` 恒 0 → `csr_rvalue`=CRMD=0x8 但不被 WB 消费；`has_int`=0；`cnt_op` 恒 NONE 故 `counter_value` 不被 EXE 使用），预期回归通过，但**必须实跑确认，不得以推理代替**。
