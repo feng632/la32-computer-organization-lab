@@ -178,7 +178,7 @@
 
 ## G1 接口骨架
 
-**状态：进行中**（RTL 已改完并通过静态检查，待 Vivado elaborate 与 ex7 回归）
+**状态：本地通过**（2026-10-29 13:06，ex7 镜像 46/46 PASS，`$finish` 1376195 ns 与 G0 一致）
 
 ### G1.1 合并 A / B 骨架
 
@@ -218,20 +218,35 @@
 
 **结论：Verilog 侧连接与位宽合法；完整的模块解析需在 Vivado 工程内 elaborate 确认。**
 
-### G1.4 未完成项
+### G1.4 回归结果（G1 判据）
+
+| 项目 | G0 基线 | G1 集成后 |
+|---|---|---|
+| 测试点 | 46/46 | **46/46** |
+| `$finish` | 1376195 ns | **1376195 ns** |
+| `Error!!!` | 0 | **0** |
+| 结束标志 | `Test end!` + `----PASS!!!` | 相同 |
+
+完整日志：`docs/verification/ex7/g1-integrated-2026-10-29.log`
+
+工程侧确认：`loongson.xpr` 已加入 `myCPU/csr.v`，`compile.log` 确认其参与编译，`launch_simulation` 于 13:04 重新编译、13:05 起仿真——**本次结果是包含 `csr.v` 与改后 IF/顶层的全新编译**，不是旧产物。
+
+**G1 通过。`pipe_flush` 恒 0 时行为与 G0 逐拍一致，接口骨架未改变 ex7 功能。**
+
+### G1.5 未完成项与遗留
 
 | 项 | 状态 |
 |---|---|
-| `csr.v` 加入 `loongson.xpr` Design Sources | 待做（Vivado GUI） |
-| Vivado Reload 后 elaborate | 待做 |
-| ex7 回归，`$finish` 应仍为 1376195 ns | 待做 |
-| A 的六路常量输出 | 未交付 |
+| A 的六路常量输出 | **未交付**，但本阶段不影响回归（见 G1.6） |
+| C01～C03 冲刷场景 | 待 G3（需 B 的 `wb_ex`/`ertn_flush` 真正产生） |
+| `tests/team/integration/` | 待建（G2 起使用） |
+| `sync_ram.v` AutoDisabled、`xpr` 的 Path 噪音 | 已记录，属预期 |
 
-### G1.5 已知隐患
+### G1.6 已知隐患
 
-A 的 `csr.v` 六路输出未驱动，接顶层后为 Z。逐条确认本阶段不影响 ex7 回归：`csr_rvalue`/`tid_value` 未被 B 的 WB 消费；`has_int` 未进入 ID 逻辑；`counter_value` 在 `cnt_op` 恒 0 时不使用；`ex_entry`/`ertn_entry` 只在 `pipe_flush` 有效时被锁存，而本阶段 `pipe_flush` 恒 0。**A 补齐后必须重跑 G1 回归。**
+A 的 `csr.v` 六路输出未驱动，接顶层后为 Z。逐条确认本阶段不影响 ex7 回归：`csr_rvalue`/`tid_value` 未被 B 的 WB 消费；`has_int` 未进入 ID 逻辑；`counter_value` 在 `cnt_op` 恒 0 时不使用；`ex_entry`/`ertn_entry` 只在 `pipe_flush` 有效时被锁存，而本阶段 `pipe_flush` 恒 0。
 
-判据：`pipe_flush` 恒 0 时 ex7 结果与 G0 逐拍一致。
+**A 补齐后必须重跑 G1 回归，不得直接进入 G2 验收。**
 
 ---
 
