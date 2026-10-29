@@ -3,6 +3,20 @@
 module ID_stage(
     input  wire                         clk,
     input  wire                         reset,
+    input wire                         pipe_flush,
+
+    // CSR模块给出的中断状态，ex8固定为0
+    input wire has_int,
+
+    // 后三级是否有有效指令
+    input wire es_valid_for_ctrl,
+    input wire ms_valid_for_ctrl,
+    input wire ws_valid_for_ctrl,
+
+    // 后三级是否有需要序列化的特殊指令
+    input wire es_serializing,
+    input wire ms_serializing,
+    input wire ws_serializing,
 
     // EXE级是否允许接收
     input  wire                         es_allowin,
@@ -13,10 +27,13 @@ module ID_stage(
     // 来自IF级
     input  wire                         fs_to_ds_valid,
     input  wire [`FS_TO_DS_BUS_WD-1:0]  fs_to_ds_bus,
+    input wire [`EXC_BUS_WD-1:0] fs_to_ds_ex,
 
     // 发送给EXE级
     output wire                         ds_to_es_valid,
     output wire [`DS_TO_ES_BUS_WD-1:0]  ds_to_es_bus,
+
+    output wire [`PIPE_META_WD-1:0]    ds_to_es_meta,
 
     // 发送给IF级的分支信息
     output wire [`BR_BUS_WD-1:0]        br_bus,
@@ -38,6 +55,8 @@ module ID_stage(
 
     // 保存IF传来的总线
     reg [`FS_TO_DS_BUS_WD-1:0] fs_to_ds_bus_r;
+
+    reg [`EXC_BUS_WD-1:0] fs_to_ds_ex_r;
 
     // ID级当前使用的指令和PC
     wire [31:0] ds_inst;
@@ -518,11 +537,14 @@ module ID_stage(
 
     // ID中有有效指令，并且译码工作完成
     assign ds_to_es_valid =
-           ds_valid && ds_ready_go;
+           ds_valid && ds_ready_go && !pipe_flush;
 
     // 维护ID级有效位
     always @(posedge clk) begin
         if (reset) begin
+            ds_valid <= 1'b0;
+        end
+        else if (pipe_flush) begin
             ds_valid <= 1'b0;
         end
         else if (ds_allowin) begin
@@ -532,8 +554,9 @@ module ID_stage(
 
     // 保存IF级传来的指令和PC
     always @(posedge clk) begin
-        if (fs_to_ds_valid && ds_allowin) begin
+        if (fs_to_ds_valid && ds_allowin && !pipe_flush) begin
             fs_to_ds_bus_r <= fs_to_ds_bus;
+            fs_to_ds_ex_r  <= fs_to_ds_ex;
         end
     end
 
@@ -562,6 +585,9 @@ module ID_stage(
         inst_mod_wu
 
     };
+
+    // 接口骨架阶段：关闭所有新增操作
+    assign ds_to_es_meta = {`PIPE_META_WD{1'b0}};
     
     assign br_bus = {br_taken, br_target};
 
@@ -940,7 +966,8 @@ module ID_stage(
             inst_jirl ||
             inst_bl   ||
             inst_b
-        ) && ds_valid && ds_ready_go;
+        ) && ds_valid && ds_ready_go
+          && es_allowin && !pipe_flush;
 
     //两类目标地址的计算方法
     assign br_target =

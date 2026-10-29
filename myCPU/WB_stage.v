@@ -4,12 +4,37 @@ module WB_stage(
     input  wire                         clk,
     input  wire                         reset,
 
+
+    // CSR模块提供的读值
+    input wire [31:0] csr_rvalue,
+    input wire [31:0] tid_value,
+
+    // 提供给ID的控制状态
+    output wire ws_valid_for_ctrl,
+    output wire ws_serializing,
+
+    // 普通CSR访问接口
+    output wire [13:0] csr_num,
+    output wire        csr_we,
+    output wire [31:0] csr_wmask,
+    output wire [31:0] csr_wvalue,
+
+    // 异常与异常返回事件
+    output wire        wb_ex,
+    output wire [5:0]  wb_ecode,
+    output wire [8:0]  wb_esubcode,
+    output wire [31:0] wb_pc,
+    output wire        wb_badv_valid,
+    output wire [31:0] wb_badv,
+    output wire        ertn_flush,
+
     // 告诉MEM级：WB是否允许接收
     output wire                         ws_allowin,
 
     // 来自MEM级
     input  wire                         ms_to_ws_valid,
     input  wire [`MS_TO_WS_BUS_WD-1:0]  ms_to_ws_bus,
+    input wire [`PIPE_META_WD-1:0] ms_to_ws_meta,
 
     // 送回ID级寄存器堆
     output wire [`WS_TO_RF_BUS_WD-1:0]  ws_to_rf_bus,
@@ -30,6 +55,7 @@ module WB_stage(
 
     // 保存MEM级传来的数据
     reg [`MS_TO_WS_BUS_WD-1:0] ms_to_ws_bus_r;
+    reg [`PIPE_META_WD-1:0] ms_to_ws_meta_r;
 
     // 从MEM总线拆出的信号
     wire        ws_gr_we;
@@ -70,6 +96,7 @@ module WB_stage(
     always @(posedge clk) begin
         if (ms_to_ws_valid && ws_allowin) begin
             ms_to_ws_bus_r <= ms_to_ws_bus;
+            ms_to_ws_meta_r <= ms_to_ws_meta;
         end
     end
 
@@ -102,5 +129,28 @@ module WB_stage(
         ws_dest,           // 5位：目的寄存器号
         ws_final_result    // 32位：最终写回结果
     };
+
+        assign ws_valid_for_ctrl = ws_valid;
+
+    assign ws_serializing =
+        ws_valid &&
+        ((ms_to_ws_meta_r[163:162] != 2'b00) ||
+          ms_to_ws_meta_r[83] ||
+          ms_to_ws_meta_r[34] ||
+         (ms_to_ws_meta_r[33:32] != 2'b00));
+
+    // G1骨架：新增操作暂不生效
+    assign csr_num       = 14'b0;
+    assign csr_we        = 1'b0;
+    assign csr_wmask     = 32'b0;
+    assign csr_wvalue    = 32'b0;
+
+    assign wb_ex         = 1'b0;
+    assign wb_ecode      = 6'b0;
+    assign wb_esubcode   = 9'b0;
+    assign wb_pc         = ws_pc;
+    assign wb_badv_valid = 1'b0;
+    assign wb_badv       = 32'b0;
+    assign ertn_flush    = 1'b0;
 
 endmodule
