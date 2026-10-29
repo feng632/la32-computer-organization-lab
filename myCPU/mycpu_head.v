@@ -22,4 +22,10 @@
 `define ES_TO_DS_BUS_WD 41
 `define MS_TO_DS_BUS_WD 39
 `define WS_TO_DS_BUS_WD 39
+
+// IF -> ID：异常信息
+`define EXC_BUS_WD 49
+
+// ID -> EXE -> MEM -> WB：并行元数据
+`define PIPE_META_WD 164
 `endif

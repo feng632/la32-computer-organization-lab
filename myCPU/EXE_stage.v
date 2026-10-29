@@ -3,6 +3,9 @@
 module EXE_stage(
     input  wire                         clk,
     input  wire                         reset,
+    input wire                          pipe_flush,
+    input wire                          ms_ex_pending,
+    input wire [63:0]                   counter_value,
 
     // MEM级是否允许接收
     input  wire                         ms_allowin,
@@ -13,13 +16,18 @@ module EXE_stage(
     // 来自ID级
     input  wire                         ds_to_es_valid,
     input  wire [`DS_TO_ES_BUS_WD-1:0]  ds_to_es_bus,
+    input wire [`PIPE_META_WD-1:0] ds_to_es_meta,
 
     // 发送给MEM级
     output wire                         es_to_ms_valid,
     output wire [`ES_TO_MS_BUS_WD-1:0]  es_to_ms_bus,
+    output wire [`PIPE_META_WD-1:0] es_to_ms_meta,
 
     // 送回ID级，用于数据相关判断
     output wire [`ES_TO_DS_BUS_WD-1:0] es_to_ds_bus,
+
+    output wire es_valid_for_ctrl,
+    output wire es_serializing,
 
     // 数据RAM接口
     output wire                         data_sram_en,
@@ -34,6 +42,8 @@ module EXE_stage(
 
     // 保存ID级传来的总线
     reg [`DS_TO_ES_BUS_WD-1:0] ds_to_es_bus_r;
+
+    reg [`PIPE_META_WD-1:0] ds_to_es_meta_r;
 
     // 从ID级总线中拆出的信号
     wire [11:0] es_alu_op;
@@ -233,11 +243,14 @@ module EXE_stage(
 
     // EXE有有效指令，并且执行完成
     assign es_to_ms_valid =
-           es_valid && es_ready_go;
+           es_valid && es_ready_go && !pipe_flush;
 
     // 维护EXE级有效位
     always @(posedge clk) begin
         if (reset) begin
+            es_valid <= 1'b0;
+        end
+        else if (pipe_flush) begin
             es_valid <= 1'b0;
         end
         else if (es_allowin) begin
@@ -247,8 +260,9 @@ module EXE_stage(
 
     // 保存ID级传来的数据
     always @(posedge clk) begin
-        if (ds_to_es_valid && es_allowin) begin
+        if (ds_to_es_valid && es_allowin && !pipe_flush) begin
             ds_to_es_bus_r <= ds_to_es_bus;
+            ds_to_es_meta_r <= ds_to_es_meta;
         end
     end
 
@@ -324,6 +338,9 @@ module EXE_stage(
         es_pc            // 32位
     };
 
+    // 将本级保存的元数据送往MEM
+    assign es_to_ms_meta = ds_to_es_meta_r;
+
    // 向ID级反馈EXE级的目的寄存器和计算结果
     assign es_to_ds_bus = {
         es_valid,          // 1位：EXE级是否存在有效指令
@@ -333,5 +350,15 @@ module EXE_stage(
         es_result,      // 32位：ALU计算结果
         es_ready_go
     };
+
+    // 直接导出本级寄存状态
+    assign es_valid_for_ctrl = es_valid;
+
+    assign es_serializing =
+        es_valid &&
+        ((ds_to_es_meta_r[163:162] != 2'b00) ||
+          ds_to_es_meta_r[83] ||
+          ds_to_es_meta_r[34] ||
+         (ds_to_es_meta_r[33:32] != 2'b00));
 
 endmodule

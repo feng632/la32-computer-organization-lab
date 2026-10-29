@@ -3,6 +3,7 @@
 module MEM_stage(
     input  wire                         clk,
     input  wire                         reset,
+    input wire                          pipe_flush,
 
     // WB级是否允许接收
     input  wire                         ws_allowin,
@@ -13,13 +14,19 @@ module MEM_stage(
     // 来自EXE级
     input  wire                         es_to_ms_valid,
     input  wire [`ES_TO_MS_BUS_WD-1:0]  es_to_ms_bus,
+    input wire [`PIPE_META_WD-1:0] es_to_ms_meta,
 
     // 发送给WB级
     output wire                         ms_to_ws_valid,
     output wire [`MS_TO_WS_BUS_WD-1:0]  ms_to_ws_bus,
+    output wire [`PIPE_META_WD-1:0] ms_to_ws_meta,
 
     // 送回ID级，用于数据相关判断
     output wire [`MS_TO_DS_BUS_WD-1:0] ms_to_ds_bus,
+
+    output wire ms_valid_for_ctrl,
+    output wire ms_serializing,
+    output wire ms_ex_pending,
 
     // 数据RAM返回值
     input  wire [31:0]                  data_sram_rdata
@@ -31,6 +38,7 @@ module MEM_stage(
 
     // 保存EXE级传来的数据
     reg [`ES_TO_MS_BUS_WD-1:0] es_to_ms_bus_r;
+    reg [`PIPE_META_WD-1:0] es_to_ms_meta_r;
 
     // 从EXE总线中拆出的信号
     wire        ms_res_from_mem;
@@ -97,11 +105,14 @@ module MEM_stage(
 
     // MEM中有有效指令，并且访存完成
     assign ms_to_ws_valid =
-           ms_valid && ms_ready_go;
+           ms_valid && ms_ready_go && !pipe_flush;
 
     // 维护MEM级有效位
     always @(posedge clk) begin
         if (reset) begin
+            ms_valid <= 1'b0;
+        end
+        else if (pipe_flush) begin
             ms_valid <= 1'b0;
         end
         else if (ms_allowin) begin
@@ -111,8 +122,9 @@ module MEM_stage(
 
     // 保存EXE级传来的信息
     always @(posedge clk) begin
-        if (es_to_ms_valid && ms_allowin) begin
+        if (es_to_ms_valid && ms_allowin && !pipe_flush) begin
             es_to_ms_bus_r <= es_to_ms_bus;
+            es_to_ms_meta_r <= es_to_ms_meta;
         end
     end
 
@@ -133,6 +145,9 @@ module MEM_stage(
         ms_pc            // 32位
     };
 
+    // 将本级保存的元数据送往WB
+    assign ms_to_ws_meta = es_to_ms_meta_r;
+
     // 向ID级反馈MEM级的目的寄存器和最终结果
     assign ms_to_ds_bus = {
         ms_valid,          // 1位：MEM级是否存在有效指令
@@ -140,5 +155,19 @@ module MEM_stage(
         ms_dest,           // 5位：目的寄存器号
         ms_final_result    // 32位：最终结果
     };
+
+
+    // 控制状态直接来自本级有效位和已保存的元数据
+    assign ms_valid_for_ctrl = ms_valid;
+
+    assign ms_serializing =
+        ms_valid &&
+        ((es_to_ms_meta_r[163:162] != 2'b00) ||
+          es_to_ms_meta_r[83] ||
+          es_to_ms_meta_r[34] ||
+         (es_to_ms_meta_r[33:32] != 2'b00));
+
+    assign ms_ex_pending =
+        ms_valid && es_to_ms_meta_r[83];
 
 endmodule
