@@ -43,6 +43,15 @@ module EXE_stage(
     wire es_exc_valid;
     wire es_mem_req_ok;
 
+    wire es_half_access;
+    wire es_word_access;
+    wire es_ale;
+
+    wire [`EXC_BUS_WD-1:0] es_exc;
+
+    wire [1:0]  es_cnt_op;
+    wire [31:0] es_cnt_value;
+
     // 保存ID级传来的总线
     reg [`DS_TO_ES_BUS_WD-1:0] ds_to_es_bus_r;
 
@@ -377,7 +386,30 @@ module EXE_stage(
      * 数据RAM访问在EXE级发起。
      * Block RAM经过时钟后返回的数据将在MEM级使用。
      */
-    assign es_exc_valid = ds_to_es_meta_r[83];
+    // 前级已有异常就保留，否则检查本级的地址不对齐
+    assign es_exc =
+        ds_to_es_meta_r[83] ? ds_to_es_meta_r[83:35] :
+        es_ale ? {1'b1, 6'h09, 9'b0, 1'b1, es_alu_result} :
+                 {`EXC_BUS_WD{1'b0}};
+
+    assign es_exc_valid = es_exc[48];
+
+    // 是否为半字访问：半字load或半字store
+    assign es_half_access =
+        (es_res_from_mem && es_load_is_half) ||
+        (es_mem_we && es_store_is_half);
+
+    // 是否为字访问：既不是字节，也不是半字的load/store
+    assign es_word_access =
+        (es_res_from_mem &&
+         !es_load_is_byte && !es_load_is_half) ||
+        (es_mem_we &&
+         !es_store_is_byte && !es_store_is_half);
+
+    // 半字检查最低1位；字检查最低2位
+    assign es_ale =
+        (es_half_access && es_alu_result[0]) ||
+        (es_word_access && (es_alu_result[1:0] != 2'b00));
 
     assign es_mem_req_ok =
         !reset && !pipe_flush && !ms_ex_pending &&
@@ -407,7 +439,7 @@ module EXE_stage(
         es_load_is_byte,
         es_load_unsigned,
         es_load_is_half,
-        es_gr_we,        // 1位
+        (es_gr_we && !es_exc_valid), // 异常指令不写普通结果
         es_mem_we,       // 1位
         es_dest,         // 5位
         es_result, // 32位
@@ -415,8 +447,21 @@ module EXE_stage(
         es_pc            // 32位
     };
 
+    assign es_cnt_op = ds_to_es_meta_r[33:32];
+
+    assign es_cnt_value =
+        (es_cnt_op == 2'b01) ? counter_value[31:0] :
+        (es_cnt_op == 2'b10) ? counter_value[63:32] :
+                              32'b0;
+
+
     // 将本级保存的元数据送往MEM
-    assign es_to_ms_meta = ds_to_es_meta_r;
+    assign es_to_ms_meta = {
+        ds_to_es_meta_r[163:84],
+        es_exc,
+        ds_to_es_meta_r[34:32],  // ertn和计数器操作类型
+        es_cnt_value            // 选出的32位计数值
+    };
 
    // 向ID级反馈EXE级的目的寄存器和计算结果
     assign es_to_ds_bus = {
@@ -437,7 +482,7 @@ module EXE_stage(
     assign es_serializing =
         es_valid &&
         ((ds_to_es_meta_r[163:162] != 2'b00) ||
-          ds_to_es_meta_r[83] ||
+            es_exc_valid ||
           ds_to_es_meta_r[34] ||
          (ds_to_es_meta_r[33:32] != 2'b00));
 

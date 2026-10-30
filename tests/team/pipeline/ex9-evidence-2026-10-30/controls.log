@@ -1,0 +1,23 @@
+#-----------------------------------------------------------
+# xsim v2023.2 (64-bit)
+# SW Build 4029153 on Fri Oct 13 20:14:34 MDT 2023
+# IP Build 4028589 on Sat Oct 14 00:45:43 MDT 2023
+# SharedData Build 4025554 on Tue Oct 10 17:18:54 MDT 2023
+# Start of session at: Fri Oct 30 19:37:22 2026
+# Process ID: 764
+# Current directory: C:/Users/feng/AppData/Local/Temp/la32-ex9-repro-20261030-1936
+# Command line: xsim.exe -log controls.log -mode tcl -source {xsim.dir/ex9_controls/xsim_script.tcl}
+# Log file: C:/Users/feng/AppData/Local/Temp/la32-ex9-repro-20261030-1936/controls.log
+# Journal file: C:/Users/feng/AppData/Local/Temp/la32-ex9-repro-20261030-1936\xsim.jou
+# Running On: LAPTOP-BLV935B0, OS: Windows, CPU Frequency: 2419 MHz, CPU Physical cores: 16, Host memory: 16890 MB
+#-----------------------------------------------------------
+source xsim.dir/ex9_controls/xsim_script.tcl
+# xsim {ex9_controls} -autoloadwcfg -runall
+Time resolution is 1 ps
+run -all
+PASS counter stall cnt_op=1 sampled=00000004
+PASS counter stall cnt_op=2 sampled=12345679
+EX9_CONTROLS_PASS checks=9
+$finish called at time : 651 ns : File "E:/LA32/la32-computer-organization-lab/tests/team/pipeline/tb_ex9_controls.sv" Line 152
+exit
+INFO: [Common 17-206] Exiting xsim at Fri Oct 30 19:37:24 2026...

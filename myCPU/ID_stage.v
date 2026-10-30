@@ -139,8 +139,15 @@ module ID_stage(
     wire inst_csrwr;
     wire inst_csrxchg;
     wire inst_syscall;
+    wire inst_break;    
     wire [`EXC_BUS_WD-1:0] ds_exc;
     wire inst_ertn;
+    wire inst_supported;
+    wire inst_ine;
+    wire inst_rdcntvl_w;
+    wire inst_rdcntvh_w;
+    wire [1:0] ds_cnt_op;
+    wire inst_rdcntid_w;
 
     wire inst_ld_w;
     wire inst_st_w;
@@ -477,8 +484,35 @@ module ID_stage(
     assign inst_syscall =
         (ds_inst[31:15] == 17'h00056);
 
+    // ertn译码
     assign inst_ertn =
         (ds_inst == 32'h06483800);
+
+    // break译码
+    assign inst_break =
+        (ds_inst[31:15] == 17'h00054);
+
+    // 稳定计数器低32位、高32位读取
+    assign inst_rdcntvl_w =
+        (ds_inst[31:10] == 22'h000018) &&
+        (rj == 5'd0);
+
+    assign inst_rdcntvh_w =
+        (ds_inst[31:10] == 22'h000019) &&
+        (rj == 5'd0);
+
+    assign inst_rdcntid_w =
+        (ds_inst[31:10] == 22'h000018) &&
+        (rd == 5'd0) &&
+        (rj != 5'd0);
+
+    assign ds_cnt_op =
+        inst_rdcntvl_w ? 2'b01 :
+        inst_rdcntvh_w ? 2'b10 :
+        inst_rdcntid_w ? 2'b11 :
+                        2'b00;
+
+                    
 
     assign inst_sub_w =
         op_31_26_d[6'h00] &&
@@ -562,6 +596,30 @@ module ID_stage(
         op_31_26_d[6'h05] &&
         !ds_inst[25];
 
+    // 汇总当前所有已实现指令
+    assign inst_supported =
+        inst_add_w | inst_sub_w |
+        inst_slt | inst_sltu | inst_slti | inst_sltui |
+        inst_nor | inst_and | inst_or | inst_xor |
+        inst_andi | inst_ori | inst_xori |
+        inst_sll_w | inst_srl_w | inst_sra_w |
+        inst_slli_w | inst_srli_w | inst_srai_w |
+        inst_addi_w | inst_lu12i_w | inst_pcaddu12i |
+        inst_ld_w | inst_ld_b | inst_ld_bu |
+        inst_ld_h | inst_ld_hu |
+        inst_st_w | inst_st_b | inst_st_h |
+        inst_jirl | inst_b | inst_bl |
+        inst_beq | inst_bne |
+        inst_blt | inst_bge | inst_bltu | inst_bgeu |
+        inst_mul_w | inst_mulh_w | inst_mulh_wu |
+        inst_div_w | inst_mod_w | inst_div_wu | inst_mod_wu |
+        inst_csrrd | inst_csrwr | inst_csrxchg |
+        inst_syscall | inst_break | inst_ertn |
+        inst_rdcntvl_w | inst_rdcntvh_w | inst_rdcntid_w;
+
+    assign inst_ine = !inst_supported;
+
+
     // 等待加载数据或EXE尚未完成的相关结果
     assign ds_ready_go =
         !load_use_hazard &&
@@ -584,7 +642,8 @@ module ID_stage(
     assign ds_serial_wait =
         serial_inflight ||
         ((inst_csrrd || inst_csrwr || inst_csrxchg ||
-          inst_ertn || ds_exc[48]) && older_valid);
+          inst_ertn || ds_exc[48] ||
+          (ds_cnt_op != 2'b00)) && older_valid);
 
     // ID为空，或者当前指令可以送给EXE时，允许IF送入新指令
     assign ds_allowin =
@@ -642,14 +701,18 @@ module ID_stage(
 
     };
 
-    // 优先保留IF已有异常，否则识别系统调用异常
+    // 中断优先，其次保留取指异常，再判断ID异常
     assign ds_exc =
+        has_int      ? {1'b1, 6'h00, 9'b0, 1'b0, 32'b0} :
         fs_to_ds_ex_r[48] ? fs_to_ds_ex_r :
+        inst_ine     ? {1'b1, 6'h0d, 9'b0, 1'b0, 32'b0} :
         inst_syscall ? {1'b1, 6'h0b, 9'b0, 1'b0, 32'b0} :
+        inst_break   ? {1'b1, 6'h0c, 9'b0, 1'b0, 32'b0} :
                        {`EXC_BUS_WD{1'b0}};
 
     // 按TEAM-ABI-1.0固定顺序打包元数据
-    assign ds_to_es_meta = {
+    assign ds_to_es_meta = 
+        ds_exc[48] ? {80'b0, ds_exc, 35'b0} : {
         inst_csrrd   ? 2'b01 :
         inst_csrwr   ? 2'b10 :
         inst_csrxchg ? 2'b11 : 2'b00, // csr_op
@@ -665,7 +728,7 @@ module ID_stage(
 
         ds_exc,                          // exc
         inst_ertn,                           // ertn
-        2'b00,                          // cnt_op
+        ds_cnt_op,                          // cnt_op
         32'b0                           // cnt_value
     };
     
@@ -833,6 +896,8 @@ module ID_stage(
 
     // 这些指令不写通用寄存器，其余已实现指令需要写
     assign gr_we =
+        !ds_exc[48] &&
+        inst_supported &&
         !inst_st_w &&
         !inst_st_b &&
         !inst_beq  &&
@@ -844,10 +909,13 @@ module ID_stage(
         !inst_b    &&
         !inst_st_h &&
         !inst_syscall &&
-        !inst_ertn;
+        !inst_ertn &&
+        !inst_break;
 
     // 存储指令需要写数据RAM
-    assign mem_we = inst_st_w | inst_st_b | inst_st_h;
+    assign mem_we =
+        !ds_exc[48] &&
+        (inst_st_w || inst_st_b || inst_st_h);
     //ex6
     assign store_is_byte = inst_st_b;
     assign store_is_half = inst_st_h;
@@ -855,8 +923,11 @@ module ID_stage(
     assign load_unsigned = inst_ld_bu | inst_ld_hu;
     assign load_is_half = inst_ld_h | inst_ld_hu;
 
-    // bl写r1，其余写rd
-    assign dest = dst_is_r1 ? 5'd1 : rd;
+    // 标识读取写rj，bl写r1，其余写rd
+    assign dest =
+        inst_rdcntid_w ? rj :
+        dst_is_r1      ? 5'd1 :
+                        rd;
 
     // WB级送回：写使能、目标寄存器号、写回数据
     assign {rf_we, rf_waddr, rf_wdata} = ws_to_rf_bus;

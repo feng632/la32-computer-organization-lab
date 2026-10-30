@@ -25,6 +25,12 @@ See [result and scope](real-div-result-2026-10-29.md).
 Its testbench is `tb_div_cancel.sv`; reproduce with `run_div_cancel.ps1`.
 Do not compile this bench together with the smoke bench's placeholder modules.
 
+## ex9 targeted verification
+
+See [2026-10-30 result and scope](ex9-result-2026-10-30.md).
+Run `run_ex9.ps1` for the 12 real-CPU/CSR program cases and the separate
+ID/EXE/MEM control bench. These do not constitute full course ex9 acceptance.
+
 ## Reproduce in PowerShell
 
 Run from the repository root. Generated files go to a new temporary directory.

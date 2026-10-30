@@ -64,6 +64,8 @@ module WB_stage(
     wire [1:0]  ws_csr_op;
     wire [31:0] ws_writeback_result;
     wire [31:0] ws_pc;
+    wire [1:0]  ws_cnt_op;
+    wire [31:0] ws_cnt_value;
 
     // 最终寄存器堆写使能
     wire rf_we;
@@ -86,8 +88,14 @@ module WB_stage(
 
     assign ws_csr_op = ms_to_ws_meta_r[163:162];
 
+    assign ws_cnt_op    = ms_to_ws_meta_r[33:32];
+    assign ws_cnt_value = ms_to_ws_meta_r[31:0];
+
     assign ws_writeback_result =
-        (ws_csr_op != 2'b00) ? csr_rvalue : ws_final_result;
+        (ws_csr_op != 2'b00) ? csr_rvalue :
+        (ws_cnt_op == 2'b11) ? tid_value :
+        (ws_cnt_op != 2'b00) ? ws_cnt_value :
+                              ws_final_result;
 
     // 维护WB级有效位
     always @(posedge clk) begin

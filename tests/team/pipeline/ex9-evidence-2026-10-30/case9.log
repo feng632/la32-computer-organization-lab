@@ -1,0 +1,22 @@
+#-----------------------------------------------------------
+# xsim v2023.2 (64-bit)
+# SW Build 4029153 on Fri Oct 13 20:14:34 MDT 2023
+# IP Build 4028589 on Sat Oct 14 00:45:43 MDT 2023
+# SharedData Build 4025554 on Tue Oct 10 17:18:54 MDT 2023
+# Start of session at: Fri Oct 30 19:37:08 2026
+# Process ID: 45044
+# Current directory: C:/Users/feng/AppData/Local/Temp/la32-ex9-repro-20261030-1936
+# Command line: xsim.exe -log case9.log -mode tcl -source {xsim.dir/ex9_program/xsim_script.tcl}
+# Log file: C:/Users/feng/AppData/Local/Temp/la32-ex9-repro-20261030-1936/case9.log
+# Journal file: C:/Users/feng/AppData/Local/Temp/la32-ex9-repro-20261030-1936\xsim.jou
+# Running On: LAPTOP-BLV935B0, OS: Windows, CPU Frequency: 2419 MHz, CPU Physical cores: 16, Host memory: 16890 MB
+#-----------------------------------------------------------
+source xsim.dir/ex9_program/xsim_script.tcl
+# xsim {ex9_program} -autoloadwcfg -runall
+Time resolution is 1 ps
+run -all
+PASS trap CASE=9 pc=1c000028 ecode=00 badv=00000000
+EX9_PROGRAM_PASS CASE=9 writes=15 traps=1 returns=1 loads=0 stores=1
+$finish called at time : 1020 ns : File "E:/LA32/la32-computer-organization-lab/tests/team/pipeline/tb_ex9_program.sv" Line 206
+exit
+INFO: [Common 17-206] Exiting xsim at Fri Oct 30 19:37:10 2026...

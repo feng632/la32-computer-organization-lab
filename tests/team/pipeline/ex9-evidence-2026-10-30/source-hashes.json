@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-30",
+  "timezone": "Asia/Shanghai",
+  "base_commit": "fbe9e515870f8008122720aeecc3c05fccf9e121",
+  "branch": "feat/ex9-exception-pipeline",
+  "status": "uncommitted-source-tested",
+  "files": [
+    {
+      "path": "myCPU/ID_stage.v",
+      "sha256_raw": "085B353D85410DBEED5C15C697C71FF6FDAB5F31ACA5C492D31F7EC0FA492527"
+    },
+    {
+      "path": "myCPU/EXE_stage.v",
+      "sha256_raw": "93A4F996A972D4A533A1745154942149E575458B4ABA5B1E49002F4B34F11EAA"
+    },
+    {
+      "path": "myCPU/MEM_stage.v",
+      "sha256_raw": "D12ED48AECE630C59230F20E144CBBE392E73BF0B11FBFC0FCFFEE067AF3E51C"
+    },
+    {
+      "path": "myCPU/WB_stage.v",
+      "sha256_raw": "4E0BFD43D95E3E67C5A2ADB5264D80BDB9FBBCA2ECBD04679117013C5A72C0BE"
+    },
+    {
+      "path": "myCPU/csr.v",
+      "sha256_raw": "3567C280A4DE07B5745293AFB1840774F87EF0DACD55BC905E668C4515571FD2"
+    },
+    {
+      "path": "myCPU/IF_stage.v",
+      "sha256_raw": "4F46EF2ABA606C9802330FC3E5D98504C17014BD190B9F92918ECAFCF7F2250C"
+    },
+    {
+      "path": "myCPU/mycpu_top.v",
+      "sha256_raw": "DFC7ABE4D4F2EAB5096100D03DDDB093C7189D96748D57BF71B1CAC584297396"
+    },
+    {
+      "path": "myCPU/mycpu_head.v",
+      "sha256_raw": "0D59D2E7D7B861E699136AE2FFBE81D2662A5580440B93F7AFF913E69E1195F5"
+    },
+    {
+      "path": "tests/team/pipeline/tb_ex9_program.sv",
+      "sha256_raw": "6CD7CA10EF2F1593D8FE25FE4E5462DDED026E5AB14B66954C3BBBB1529B0F05"
+    },
+    {
+      "path": "tests/team/pipeline/tb_ex9_controls.sv",
+      "sha256_raw": "4D568CE6A69BFC3F245A02D1266529C11D126ED184CB61AE85DA043D3F2891EB"
+    },
+    {
+      "path": "tests/team/pipeline/tb_ex8_smoke.sv",
+      "sha256_raw": "76E26F0D2A1D2166EDDC0E6BC58FEE2BEDAD8C82BEBAE94352FE7D7627DB1557"
+    },
+    {
+      "path": "tests/team/pipeline/run_ex9.ps1",
+      "sha256_raw": "12A795AEB96BC3886A51C7B767AEB8DD388988696F73DF40091612F47E7A9F07"
+    }
+  ]
+}

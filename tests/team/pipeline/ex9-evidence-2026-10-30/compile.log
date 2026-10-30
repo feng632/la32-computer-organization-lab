@@ -1,0 +1,31 @@
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/myCPU/alu.v" into library work
+INFO: [VRFC 10-311] analyzing module alu
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/myCPU/csr.v" into library work
+INFO: [VRFC 10-311] analyzing module csr
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/myCPU/EXE_stage.v" into library work
+INFO: [VRFC 10-311] analyzing module EXE_stage
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/myCPU/ID_stage.v" into library work
+INFO: [VRFC 10-311] analyzing module ID_stage
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/myCPU/IF_stage.v" into library work
+INFO: [VRFC 10-311] analyzing module IF_stage
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/myCPU/MEM_stage.v" into library work
+INFO: [VRFC 10-311] analyzing module MEM_stage
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/myCPU/mycpu_top.v" into library work
+INFO: [VRFC 10-311] analyzing module mycpu_top
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/myCPU/regfile.v" into library work
+INFO: [VRFC 10-311] analyzing module regfile
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/myCPU/tools.v" into library work
+INFO: [VRFC 10-311] analyzing module decoder_2_4
+INFO: [VRFC 10-311] analyzing module decoder_4_16
+INFO: [VRFC 10-311] analyzing module decoder_5_32
+INFO: [VRFC 10-311] analyzing module decoder_6_64
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/myCPU/WB_stage.v" into library work
+INFO: [VRFC 10-311] analyzing module WB_stage
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/tests/team/pipeline/tb_ex8_smoke.sv" into library work
+INFO: [VRFC 10-311] analyzing module tb_ex8_smoke
+INFO: [VRFC 10-311] analyzing module div_signed
+INFO: [VRFC 10-311] analyzing module div_unsigned
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/tests/team/pipeline/tb_ex9_program.sv" into library work
+INFO: [VRFC 10-311] analyzing module tb_ex9_program
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/tests/team/pipeline/tb_ex9_controls.sv" into library work
+INFO: [VRFC 10-311] analyzing module tb_ex9_controls
