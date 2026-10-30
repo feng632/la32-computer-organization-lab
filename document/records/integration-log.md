@@ -461,9 +461,9 @@ C 侧短程序的设计要点已确认（以 `confreg.v` 实测为依据）：`o
 
 **日志取证注意**：`ex8-full-2026-10-30.log` 内含两轮仿真记录——第 548/550 行为 ex7 回归（`$finish` 1376195 ns），第 1022/1024 行为本次 ex8（`$finish` 1385245 ns）。引用时须指明轮次，避免取错时刻。
 
-### C01～C04 定向冲刷与重定向场景（模块级激励，通过）
+### C01～C05 定向冲刷、重定向与 ADEF（模块级激励，通过）
 
-2026-10-30，`mycpu_top` 模块级测试，**44 项检查全部通过**（`checks=44 fails=0`，`IF_FLUSH_PASS`，`$finish` 870 ns）。
+2026-10-30，`mycpu_top` 模块级测试，**62 项检查全部通过**（`checks=62 fails=0`，`IF_FLUSH_PASS`，`$finish` 1110 ns）。
 
 **测试手段与其边界（必须明确）**：
 
@@ -526,6 +526,150 @@ tests/team/integration/if_flush/run_if_flush.ps1
 **日志**：`tests/team/integration/if_flush/if-flush-2026-10-30.log`（81 行，44 条 PASS）。
 
 **本阶段仍缺**：C05～C07 属 G5（ADEF 需先在 IF 实现；硬中断需 A/B 的 ex9 功能）。
+
+### C05 ADEF 实现与验证（G5，通过）
+
+ex9 的 ADEF 由 C 负责（`04-ex9-design.md`：C，IF 请求前，ecode 0x08）。本次在 `myCPU/IF_stage.v` 内实现，**未改动任何端口，TEAM-ABI-1.0 不变**。
+
+**实现要点（6 处改动）**：
+
+| 位置 | 改动 | 依据 |
+|---|---|---|
+| 新增信号 | `pc_misaligned`（待发起地址低两位非 0）、`fs_pc_misaligned`（已锁存 PC 低两位非 0）、`fetch_exc` | ADEF 判据为 `PC[1:0] != 0` |
+| `fetch_req` | 增加 `&& !pc_misaligned` | 错误地址**不发 RAM 请求** |
+| `fetch_exc` | `= to_fs_valid && fs_allowin && !pipe_flush && pc_misaligned` | 异常也必须是**有效标记**才能送到 ID |
+| `fs_pc` / `fs_valid` 更新条件 | 由 `fetch_req` 改为 `fetch_req \|\| fetch_exc` | 错误 PC 需锁存为 `badv`，且 `fs_valid` 要置位 |
+| `fs_to_ds_bus` | `{fs_pc_misaligned ? 32'b0 : fs_inst, fs_pc}` | 规范要求 `inst=0`，防止 ID 把旧数据当指令 |
+| `fs_to_ds_ex` | `fs_pc_misaligned ? {1'b1, 6'h08, 9'b0, 1'b1, fs_pc} : 49'b0` | `{valid, ecode=0x08, esubcode=0, badv_valid=1, badv=错误PC}` |
+| `redirect_pending` 清除 | 由 `fetch_req && use_redirect` 改为 `(fetch_req \|\| fetch_exc) && use_redirect` | **否则错误目标会被反复取，形成 ADEF 循环** |
+
+**验证结果（18 项全过）**：
+
+| 检查 | 结果 |
+|---|---|
+| 错误 PC 时不发 RAM 请求（`inst_en=0`） | ✓ |
+| `fetch_addr` 为错误地址，`fs_pc` 锁存该地址 | ✓ |
+| `fs_valid=1`、`fs_to_ds_valid=1`（有效异常标记可送 ID） | ✓ |
+| `fs_to_ds_ex[48]=1`、`[47:42]=0x08`、`[41:33]=0`、`[32]=1`、`[31:0]=0x1c007002` | ✓ |
+| `fs_to_ds_bus` 的指令字段被强制为 0，PC 字段为错误地址 | ✓ |
+| **ID 保留该异常**（`fs_to_ds_ex_r[48]=1`、`ds_exc[48]=1`、`ds_exc` ecode=0x08） | ✓ **未被译成 INE** |
+| 连续错误地址期间均不发 RAM 请求 | ✓ |
+
+**ID 侧无需改动**：`ID_stage.v` 第 646 行已是 `ds_exc = fs_to_ds_ex_r[48] ? fs_to_ds_ex_r : ...`，IF 异常天然优先于 SYS。B 后续加 INE/BRK 时须保持该优先级（放在 `else` 分支）。
+
+**日志**：`tests/team/integration/if_flush/if-flush-2026-10-30.log`（62 条 PASS，含 C01~C05）。
+
+**ex8 回归（改动后必须实跑，已完成）**：
+
+虽然 `pc_misaligned=0` 时所有改动与原来等价（`fetch_exc` 恒 0、`fetch_req` 不变、两个输出不变），但这是 RTL 改动，推理不能代替实跑。
+
+| 项 | G4 基线 | ADEF 改动后 | 判定 |
+|---|---|---|---|
+| 测试点 | 47 / 47 | **47 / 47** | ✓ |
+| 第 47 点时刻 | 1384795 ns | **1384795 ns** | ✓ |
+| `$finish` | 1385245 ns | **1385245 ns** | ✓ **一字不差** |
+| `Error!!!` | 0 | **0** | ✓ |
+| 编译 | — | `compile.log` 15:27 重新编译，确认读到新 `IF_stage.v` | ✓ |
+
+**结论：ADEF 改动对正常路径零影响。** 日志 `docs/verification/ex8/ex8-after-adef-2026-10-30.log`（66 KB，仅含本次一轮仿真）。
+
+**C05 至此完成**：实现 + 18 项定向检查 + ex8 回归，三项齐全。
+
+### C06 硬中断输入验证（G5，通过）
+
+A 的 `csr.v` 已实现中断采样（第 77 行 `ESTAT[9:2] <= hw_int_in`）、定时器（`ESTAT[11]`、`TCFG/TVAL/TICLR`）、`has_int = CRMD[2] & |(ESTAT[12:0] & ECFG[12:0])`。**C 侧无需改 RTL**，本次只做验证。
+
+**手段**：`mycpu_top` 模块级，`hw_int_in` 为顶层输入端口，由 TB 直接驱动（无需 force）；CSR 写走真实写端口（force `csr_num/csr_we/csr_wmask/csr_wvalue` 一拍），不用戳内部寄存器。
+
+**结果（18 项全过）**：
+
+| 检查 | 结果 |
+|---|---|
+| 复位后 `hw_int_in=0` → `IS[9:2]=0`，`has_int=0` | ✓ |
+| **逐位**：`hw_int_in[i]` → `IS[i+2]`，整个字节精确比对（8 次，无错位、无串扰） | ✓ |
+| 全 1 → `IS[9:2]=0xFF` | ✓ |
+| `IS[10]`、`IS[12]` 恒 0（未实现位） | ✓ |
+| `IE=0` → `has_int=0` | ✓ |
+| `IE=1` 但 `LIE=0` → `has_int=0`（**光开 IE 不够**） | ✓ |
+| `IE=1` 且 `LIE[9:2]` 使能 → `has_int=1`（`CRMD=0x0c ECFG=0x3fc ESTAT=0x3fc`） | ✓ |
+| 撤销 `hw_int_in` → `IS[9:2]` 与 `has_int` 归零 | ✓ |
+
+**复现**：`tests/team/integration/int_hw/run_int_hw.ps1`
+**日志**：`tests/team/integration/int_hw/int-hw-2026-10-30.log`（18 条 PASS）
+
+已知无害告警：xvlog 对 static task 的输入参数报 3 条 `Sensitivity ... may never get triggered`——这是 `force` 语句只能用 static task 参数导致的提示，不影响功能。
+
+### C07 连接完整性检查（G5，静态通过）
+
+| 检查项 | 结果 |
+|---|---|
+| `mycpu_top` 六处例化端口 | **全部连接**：IF 14、ID 23、EXE 20、MEM 16、WB 27、csr 20 |
+| `soc_lite_top` 例化端口 | **全部连接**：`mycpu_top` 17、`bridge_1x2` 17、`confreg` 18 |
+| 设计源 stub 残留 | **无**（`myCPU/`、`rtl/` 下无 `div_signed`/`div_unsigned` 占位定义） |
+| IP 产物 | 5 个 IP 均有 `.xci` 与生成产物；`inst_ram.mif` 与 ex9 镜像同步（4,397,217 B） |
+| 未解析模块 | **仅 `div_signed`/`div_unsigned`**（VHDL，工程内由 IP 提供，命令行 xelab 必然报）；除此之外无 |
+| 位宽不匹配 | **0 条 WARNING**（xvlog + xelab 均为 0） |
+| `hw_int_in` 悬空 | **显式接 `8'b0`**（`soc_lite_top.v:144`，带注释说明本 SoC 无中断源） |
+
+**说明**：`div` 的两条 ERROR 是命令行 elaborate 的固有限制（IP 为 VHDL，需 Vivado 工程库），不代表设计缺失。工程内综合/仿真由 IP 模型提供，参考 G4 的 47/47 通过。
+
+**C07 的工程侧判据（IP 全部生成、无替代模块）同时满足；课程 ex9 镜像完整仿真尚未跑，属 G5 剩余项。**
+
+### G5 ex9 课程镜像完整验证（本地功能通过）
+
+2026-10-30 23:29，课程 ex9 镜像 + 配对轨迹，**58/58 测试点全部 PASS**。
+
+**输入核对**（与 `baseline.json` 的 `ex9` 记录逐项比对）：
+
+| 文件 | 仓库实测 | baseline ex9 | 判定 |
+|---|---|---|---|
+| `func/obj/inst_ram.coe` | `BEA7A2C05524B198D77F79B8F85F84C4` | `BEA7A2C0...` | ✓ |
+| `func/obj/inst_ram.mif` | `E15A8C727C9461A0DF8BD9F81356F9F9` | `E15A8C72...` | ✓ |
+| `func/obj/test.s` | `87E396E3041F377E6F10356A5455521A` | `87E396E3...` | ✓ |
+| `func/obj/data_ram.coe/mif` | 与 ex8 相同 | 同 | 无需更换 ✓ |
+| `gettrace/golden_trace.txt` | 91,593 行 | — | 已换为 ex9 配对轨迹 ✓ |
+| `xilinx_ip/inst_ram/inst_ram.mif` | 4,397,217 B | 与源 coe 同大小 | **IP 已随镜像重新生成** ✓ |
+
+**注意一处过程问题**：初检时 `func/obj` 的 `inst_ram.coe` 仍是 ex8 的 `E6A1F8AA`，而 `golden_trace.txt` 已换成 ex9（91,593 行）。**镜像与轨迹不配对**，直接跑会在第一条写回就报错。已从课程 `for_test_obj/ex9_obj` 重新复制并核对哈希，四个文件全部对上。
+
+**执行结果**：
+
+| 项目 | 值 |
+|---|---|
+| 测试点 | **58 / 58** |
+| 首点 / 末点 | `12115 ns` / `2040565 ns` |
+| 结束标志 | `Test end!` + `----PASS!!!` |
+| `$finish` | **2041015 ns** |
+| `Error!!!` / `Unknown` | **0** |
+| 重编译确认 | `compile.log` 23:26:38，在 IP 更新之后、仿真结束之前 ✓ |
+| 日志 | `docs/verification/ex9/ex9-full-2026-10-30.log`（63 KB，仅一轮） |
+
+**与 ex8 对照**：
+
+| 项 | ex8 | ex9 | 说明 |
+|---|---|---|---|
+| 测试点 | 47 | **58** | +11 项，对应 BRK/INE/ALE/硬中断/定时器等 ex9 增量 |
+| `$finish` | 1385245 ns | **2041015 ns** | +655770 ns |
+
+**这次通过的意义**：三方 ex9 交付第一次在真实课程镜像下同时被验证——
+
+| 方 | 交付内容 | 在本轮中的体现 |
+|---|---|---|
+| A | `csr` 的 `ESTAT[9:2]` 采样、`ESTAT[11]` 定时器、`has_int`、`TCFG/TVAL/TICLR`、64 位 `counter_value` | 测试点 48~58 段涉及中断与计数器，全部匹配参考轨迹 |
+| B | `ID` 的 `INE`(0x0d)/`SYS`(0x0b)/`BRK`(0x0c) 与 `INT`(0x00) 检测、`EXE` 的 `ALE`(0x09)、前级异常沿途保留、序列化 | 异常相关测试点通过 |
+| C | `IF` 的 `ADEF`(0x08)、顶层 `pipe_flush`/`redirect_pc`、`hw_int_in` 接线 | 取指异常与冲刷路径 |
+
+**本次未覆盖（不得据 G5 结论声称通过）**：
+
+| 项 | 状态 |
+|---|---|
+| A 的 ex9 定向测试（A06~A14 的独立断言） | 未见 A 提交；功能在本轮镜像中已被间接验证，但缺少模块级定向用例 |
+| 综合 / 实现 / 静态时序 | 未做。ex9 代码规模大于 ex8，时序预期比 ex8 的 −1.564 ns 更紧张，**不得沿用 ex8 结论** |
+| ex9 的 bit 构建与线上评测 | 未做 |
+| C01~C07 之外的长时随机场景 | 未做 |
+
+
+
 
 ### 远程 bit 构建（ex8 代码，生成成功，时序未通过）
 

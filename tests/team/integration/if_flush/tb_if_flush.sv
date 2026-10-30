@@ -83,6 +83,7 @@ module tb_if_flush;
     wire [31:0]  fs_pc            = u_cpu.u_if_stage.fs_pc;
     wire         fs_to_ds_valid   = u_cpu.u_if_stage.fs_to_ds_valid;
     wire [63:0]  fs_to_ds_bus     = u_cpu.u_if_stage.fs_to_ds_bus;
+    wire [48:0]  fs_to_ds_ex      = u_cpu.u_if_stage.fs_to_ds_ex;
     wire [31:0]  fs_inst          = u_cpu.u_if_stage.fs_inst;
 
     wire         pipe_flush       = u_cpu.pipe_flush;
@@ -323,10 +324,57 @@ module tb_if_flush;
         repeat (2) @(posedge clk);
     endtask
 
+    // ============================================================== C05
+    // ex9 ADEF: bad instruction PC (PC[1:0] != 0)
+    //   04-ex9-design: IF must NOT issue a RAM request for a bad address, but
+    //   must build a valid exception marker {inst=0, pc=bad PC, ADEF} and pass
+    //   it to ID normally. ID must keep it instead of decoding inst=0 as INE.
+    task automatic scen_c05();
+        $display("\n===== C05: ADEF on misaligned instruction PC =====");
+        do_reset();
+        wait_fs_valid();
+
+        // Redirect to a misaligned target (bit1 set)
+        @(negedge clk);
+        force u_cpu.wb_ex    = 1'b1;
+        force u_cpu.ex_entry = 32'h1c00_7002;
+        @(posedge clk); #1;
+        chk1 ("C05.1 pipe_flush active",              pipe_flush, 1'b1);
+
+        @(negedge clk);
+        release u_cpu.wb_ex;
+        release u_cpu.ex_entry;
+        #1;
+        // This cycle fetch_addr is the bad target
+        chk1 ("C05.2 no RAM request for bad PC",      inst_en,    1'b0);
+        chk32("C05.3 fetch address is the bad PC",    fetch_addr, 32'h1c00_7002);
+        chk1 ("C05.4 next fetch is also misaligned",  inst_addr[1], 1'b1);
+
+        @(posedge clk); #1;
+        chk32("C05.5 fs_pc latched the bad PC",       fs_pc,            32'h1c00_7002);
+        chk1 ("C05.6 marker is valid",                fs_valid,         1'b1);
+        chk1 ("C05.7 marker can reach ID",            fs_to_ds_valid,   1'b1);
+        chk1 ("C05.8 exc valid bit",                  fs_to_ds_ex[48],  1'b1);
+        chk32("C05.9 ecode is ADEF (0x08)",           fs_to_ds_ex[47:42], 6'h08);
+        chk32("C05.10 esubcode is 0",                 fs_to_ds_ex[41:33], 9'b0);
+        chk1 ("C05.11 badv_valid",                    fs_to_ds_ex[32],  1'b1);
+        chk32("C05.12 badv = bad PC",                 fs_to_ds_ex[31:0], 32'h1c00_7002);
+        chk32("C05.13 instruction forced to 0",       fs_to_ds_bus[63:32], 32'b0);
+        chk32("C05.14 PC field on bus",               fs_to_ds_bus[31:0], 32'h1c00_7002);
+        chk1 ("C05.15 still no RAM request",          inst_en,          1'b0);
+
+        @(posedge clk); #1;
+        chk1 ("C05.16 ID keeps IF exception",         u_cpu.u_id_stage.fs_to_ds_ex_r[48], 1'b1);
+        chk1 ("C05.17 ID ds_exc keeps ADEF",          u_cpu.u_id_stage.ds_exc[48], 1'b1);
+        chk32("C05.18 ID ds_exc ecode",               u_cpu.u_id_stage.ds_exc[47:42], 6'h08);
+
+        repeat (3) @(posedge clk);
+    endtask
+
     // ============================================================== main
     initial begin
         $display("================================================================");
-        $display(" C01/C02/C03/C04  IF flush and redirect timing (module level)");
+        $display(" C01~C05  IF flush / redirect / ADEF timing (module level)");
         $display(" Stimulus: ds_allowin / wb_ex / ertn_flush / ex_entry /");
         $display("           ertn_entry / br_bus forced.");
         $display(" This is module stimulus allowed by 05-validation, NOT a claim");
@@ -337,6 +385,7 @@ module tb_if_flush;
         scen_c02();
         scen_c03();
         scen_c04();
+        scen_c05();
 
         $display("\n================================================================");
         $display("IF_FLUSH_SUMMARY checks=%0d fails=%0d", checks, fails);

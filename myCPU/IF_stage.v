@@ -52,14 +52,22 @@ module IF_stage(
     wire [31:0] fetch_addr;
     wire        fetch_req;
 
+    // ex9 ADEF：取指地址错误
+    wire        pc_misaligned;      // 本拍要发起的地址是否错误
+    wire        fs_pc_misaligned;   // 已锁存到IF的PC是否错误
+    wire        fetch_exc;          // 本拍产生一个取指异常标记
+
     // 拆开ID级传回的分支总线
     assign {br_taken, br_target} = br_bus;
 
     // IF向ID传递：指令和该指令对应的PC
-    assign fs_to_ds_bus = {fs_inst, fs_pc};
+    // 取指地址错误时指令字强制为0，不允许ID把上一次读出的数据当指令译码
+    assign fs_to_ds_bus = {fs_pc_misaligned ? 32'b0 : fs_inst, fs_pc};
 
-    // ex9 才产生 ADEF；骨架阶段恒无异常
-    assign fs_to_ds_ex = {`EXC_BUS_WD{1'b0}};
+    // ex9 ADEF：{valid, ecode=0x08, esubcode=0, badv_valid=1, badv=错误PC}
+    // 无异常时整个49位清零（02约定：不允许X/Z占位）
+    assign fs_to_ds_ex = fs_pc_misaligned ?
+        {1'b1, 6'h08, 9'b0, 1'b1, fs_pc} : {`EXC_BUS_WD{1'b0}};
 
     // 当前阶段暂时没有需要等待的多周期操作
     assign fs_ready_go = 1'b1;
@@ -77,8 +85,15 @@ module IF_stage(
     assign use_redirect = redirect_pending;
     assign fetch_addr   = use_redirect ? redirect_pc_r : next_pc;
 
+    // ex9 ADEF：课程只检查指令地址 PC[1:0]!=0
+    assign pc_misaligned    = (fetch_addr[1:0] != 2'b00);
+    assign fs_pc_misaligned = (fs_pc[1:0]     != 2'b00);
+
+    // 地址错误的这一拍不向RAM发请求，但仍要产生一个有效的异常标记送ID
+    assign fetch_exc = to_fs_valid && fs_allowin && !pipe_flush && pc_misaligned;
+
     // 本拍是否真正向指令RAM发请求：冲刷当拍一律不发
-    assign fetch_req = to_fs_valid && fs_allowin && !pipe_flush;
+    assign fetch_req = to_fs_valid && fs_allowin && !pipe_flush && !pc_misaligned;
 
     // IF为空，或者当前指令能够送往ID时，可以接收新的PC
     assign fs_allowin =
@@ -90,19 +105,21 @@ module IF_stage(
     assign fs_to_ds_valid =
            fs_valid && fs_ready_go && !br_taken && !pipe_flush;
 
-    // PC：只在真正发出请求的那一拍更新
+    // PC：发出请求或产生取指异常的那一拍更新
+    // 地址错误时不发RAM请求，但仍需把错误PC锁存下来作为ADEF的badv
     always @(posedge clk) begin
         if (reset) begin
             // 下一次加4后得到0x1c000000
             fs_pc <= 32'h1bfffffc;
         end
-        else if (fetch_req) begin
+        else if (fetch_req || fetch_exc) begin
             fs_pc <= fetch_addr;
         end
     end
 
     // 有效位：请求发出的下一拍，BRAM 数据才就绪；
     // 冲刷优先清0，因此旧请求的响应回来时不会被当成有效指令
+    // 取指异常同样是有效标记，必须置位才能送到ID
     always @(posedge clk) begin
         if (reset) begin
             fs_valid <= 1'b0;
@@ -110,7 +127,7 @@ module IF_stage(
         else if (pipe_flush) begin
             fs_valid <= 1'b0;
         end
-        else if (fetch_req) begin
+        else if (fetch_req || fetch_exc) begin
             fs_valid <= to_fs_valid;
         end
     end
@@ -125,7 +142,8 @@ module IF_stage(
             redirect_pc_r    <= redirect_pc;
             redirect_pending <= 1'b1;
         end
-        else if (fetch_req && use_redirect) begin
+        else if ((fetch_req || fetch_exc) && use_redirect) begin
+            // 取指异常也算消费了重定向，否则错误目标会被反复取，形成ADEF循环
             redirect_pending <= 1'b0;
         end
     end
