@@ -375,6 +375,41 @@ CSR_TEST_PASS
 
 ## G2 ～ G6
 
-**状态：未开始**
+**状态：G2 进行中**（B 的 ex8 流水线已合入，C 的真实 SoC 短程序待做，阻塞于工具链）
 
-按 `document/05-validation.md` 的里程碑推进，每阶段完成时在本文件追加一节。
+### G2.1 B 的 ex8 流水线与提交逻辑合入（`470bd10` + `33e6b74`）
+
+2026-10-30 合并 `origin/feat/exception-pipeline`，**fast-forward**（B 直接基于 G1 最终提交 `a865f81`，未产生 merge 节点）。
+
+改动范围：`ID_stage.v` +103、`EXE_stage.v` +116、`WB_stage.v` +65、`MEM_stage.v` +5，另加 `tests/team/pipeline/` 六个测试文件。
+
+**C 侧代码核对（合入前完成）**：
+
+| 模块 | 关键点 | 判定 |
+|---|---|---|
+| WB | `wb_ex`/`ertn_flush`/`csr_we` 的产生条件与互斥；位段 `[83]/[82:77]/[76:68]/[67]/[66:35]` 与 49 位 EXC 布局逐位对齐；`badv_valid=0` 时 `wb_badv` 输出 0；`ws_allowin` 含 `!wb_ex && !ertn_flush`；`rf_we` 含 `dest≠0` | ✓ |
+| ID | 五条指令译码；`serial_inflight`/`older_valid`/`ds_serial_wait`；meta 打包（`csr_num=inst[23:10]`、`wmask` WR 全 1 / XCHG 取 rj、`wvalue=rkd_value`）；`br_taken` 含 `!ds_exc[48]` | ✓ |
+| EXE | `es_mem_req_ok` 五项条件与 03 第 5 节逐项一致；`data_sram_en/we` 组合屏蔽；`es_ready_go = es_exc_valid ? 1`；除法 `RESET_HOLD(2拍)→RECOVER(1拍)→RUN` | ✓ |
+| 编码 | `0400180C`=csrrd $r12,0x6；`0401102D`=csrwr $r13,0x44；`0400158D`=csrxchg $r13,$r12,0x5；`002B0000`=syscall 0x0；`06483800`=ertn | ✓ 全部取自 `func/obj/test.s` 与 `ex8_obj/test.s` 真实反汇编 |
+
+**静态检查**：11 个 Verilog 文件 `xvlog` 通过，0 ERROR / 0 WARNING。
+
+### G2.2 合并后回归
+
+| 测试 | 结果 | 说明 |
+|---|---|---|
+| **ex7 课程镜像** | 46/46 PASS，`$finish` **1376195 ns**，0 Error | 08:18 重新编译。B 将 `pipe_flush` 由常数 0 改为真实事件并加入序列化排空后，**逐拍行为仍与 G0 完全一致**，说明冲刷通路未误触发、序列化未阻塞正常指令流 |
+| **B 的 ex8 smoke（C 重跑）** | `EX8_SMOKE_PASS write_checks=22 exceptions=1 returns=1 stores=1`，1240 ns | 在**合并后**代码（含 A 的 `csr.v` ECFG 修复）上重跑，与 B 的记录一致 |
+
+B 的 smoke 为模块级集成测试：真实 IF/ID/EXE/MEM/WB + 寄存器堆 + ALU + 顶层连线 + A 的 `csr`，但**指令存储器为自建同步 ROM、除法器为占位模块**，其 README 明确声明不验证除法、不验证 B01～B09 全部、不验证课程 ex8 镜像。
+
+### G2.3 G2 剩余工作与阻塞
+
+| 项 | 状态 | 阻塞原因 |
+|---|---|---|
+| A 的 A01～A03 | ✓ | — |
+| B 的 B01～B03、B09 | 部分通过（smoke 覆盖 CSR 读写旧值、部分掩码交换、rd=0、未知 CSR、ADD 立即依赖、EENTRY、SYS 编码与 ERA、ERA+4、返回、无重复事件） | 未覆盖 B09 全字段图样、B05 访存屏蔽的强制构造 |
+| **C 的真实 SoC 短程序** | ✗ **未开始** | **本机无 `loongarch32r-linux-gnusf-*` 交叉工具链**，无法从 `.S` 生成 `inst_ram.coe`。课程资料包内亦无工具链 |
+| 课程 ex8 完整仿真（G4） | ✗ | 缺 ex8 配对的 `golden_trace.txt`；`ex8_obj` 仅含四个镜像 + `rom.vlog` + `test.s` |
+
+C 侧短程序的设计要点已确认（以 `confreg.v` 实测为依据）：`open_trace` 复位值为 **1**，短程序必须首先向 `0xbfafff30` 写 0 关闭 trace 比对，否则 `mycpu_tb.v` 会用 ex7 轨迹逐条比对并立即报错；程序收尾需跳到 `0x1c000100`（`END_PC`）或经 uart 输出 `0xff` 触发 `test_end`。
