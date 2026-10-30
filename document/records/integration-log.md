@@ -375,7 +375,7 @@ CSR_TEST_PASS
 
 ## G2 ～ G6
 
-**状态：G2 进行中**（B 的 ex8 流水线已合入，C 的真实 SoC 短程序待做，阻塞于工具链）
+**状态：G4 本地功能通过**（ex8 课程镜像 47/47 PASS），G5/G6 未开始；C01～C04 定向场景已补做（模块级激励，44/44 通过，见本文件末尾章节），C 侧短程序仍待做
 
 ### G2.1 B 的 ex8 流水线与提交逻辑合入（`470bd10` + `33e6b74`）
 
@@ -413,3 +413,155 @@ B 的 smoke 为模块级集成测试：真实 IF/ID/EXE/MEM/WB + 寄存器堆 + 
 | 课程 ex8 完整仿真（G4） | ✗ | 缺 ex8 配对的 `golden_trace.txt`；`ex8_obj` 仅含四个镜像 + `rom.vlog` + `test.s` |
 
 C 侧短程序的设计要点已确认（以 `confreg.v` 实测为依据）：`open_trace` 复位值为 **1**，短程序必须首先向 `0xbfafff30` 写 0 关闭 trace 比对，否则 `mycpu_tb.v` 会用 ex7 轨迹逐条比对并立即报错；程序收尾需跳到 `0x1c000100`（`END_PC`）或经 uart 输出 `0xff` 触发 `test_end`。
+
+### G4 ex8 课程镜像完整验证（本地功能通过）
+
+2026-10-30，课程 ex8 镜像 + 配对轨迹，47/47 测试点全部 PASS。
+
+**输入核对**：
+
+| 输入 | 值 | 判定 |
+|---|---|---|
+| `func/obj/inst_ram.coe` | `E6A1F8AA036755FB...` | 与 `baseline.json` 记录的 ex8 哈希一致 ✓ |
+| `func/obj/inst_ram.mif` | 4,332,075 B | 与 ex8 一致 ✓ |
+| `func/obj/test.s` | `7F9D6FD4...` | ex8 反汇编 ✓ |
+| `func/obj/data_ram.coe/mif` | `8BC44E0D` / `54E1F555` | 与 ex7 相同，无需更换 ✓ |
+| `gettrace/golden_trace.txt` | 87,100 行，末行 `1 1c000100 0c bfaff091` | 已替换为 ex8 配对轨迹 ✓ |
+| IP 产物 | `inst_ram/inst_ram.mif` 08:38 重新生成，4,332,075 B | 与新 coe 同步 ✓ |
+
+**执行结果**：
+
+| 项目 | 值 |
+|---|---|
+| 测试点 | **47 / 47** |
+| 第 47 点 | `[1384795 ns] Number 8'd47 Functional Test Point PASS!!!`，PC `0x1c00800c`（`syscall_ex` 入口） |
+| 结束标志 | `Test end!` + `----PASS!!!` |
+| `$finish` | **1385245 ns** |
+| `Error!!!` / `Unknown` | **0** |
+| 耗时 | cpu 00:01:08 / elapsed 00:03:20 |
+| 完整日志 | `docs/verification/ex8/ex8-full-2026-10-30.log` |
+
+**与 ex7 的对照**：
+
+| 项 | ex7 | ex8 | 说明 |
+|---|---|---|---|
+| 测试点 | 46 | **47** | 多出 `n47_syscall_ex_test` |
+| `$finish` | 1376195 ns | **1385245 ns** | +109050 ns，源于新增的 syscall 测试段 |
+
+**这次通过意味着什么**：这是三方交付**第一次在真实课程镜像下同时被验证**——A 的 `csr` 模块（CRMD/PRMD/ESTAT/ERA/EENTRY 读写、异常提交、ERTN 恢复）、B 的流水线（CSR 译码、meta 传递、序列化排空、冲刷、访存屏蔽）、C 的顶层连线（`pipe_flush`/`redirect_pc`、IF 重定向、`csr` 例化）共同跑通了含 syscall 的完整测试序列，且逐条写回与参考轨迹一致。
+
+**本次未覆盖（不得据 G4 结论声称通过）**：
+
+| 项 | 状态 |
+|---|---|
+| C01～C04 定向冲刷场景（`ds_allowin=0` 时冲刷、连续 redirect、旧响应丢弃、EENTRY→syscall→ERA→ERTN 闭环的变量组合） | 当时未做。课程程序只走到 n47 的 syscall 路径，不主动构造这些交叉条件。**已于后续补做，见本文件"C01～C04 定向冲刷与重定向场景"章节** |
+| C05～C07（ex9：ADEF、硬中断端口、全模块连接检查） | 未做，属 G5 |
+| 综合 / 实现 / 静态时序 | 未做，沿用 ex7 历史 WNS −1.127 ns 结论，不得声称时序通过 |
+| bit 构建与线上评测 | 未做 |
+
+**日志取证注意**：`ex8-full-2026-10-30.log` 内含两轮仿真记录——第 548/550 行为 ex7 回归（`$finish` 1376195 ns），第 1022/1024 行为本次 ex8（`$finish` 1385245 ns）。引用时须指明轮次，避免取错时刻。
+
+### C01～C04 定向冲刷与重定向场景（模块级激励，通过）
+
+2026-10-30，`mycpu_top` 模块级测试，**44 项检查全部通过**（`checks=44 fails=0`，`IF_FLUSH_PASS`，`$finish` 870 ns）。
+
+**测试手段与其边界（必须明确）**：
+
+| 项 | 说明 |
+|---|---|
+| 级别 | `mycpu_top` 模块级。指令 RAM 为同步读模型（1 拍延迟），内容恒为 `addi.w $r0,$r0,0` |
+| 激励 | `force` 顶层 `ds_allowin` / `wb_ex` / `ex_entry` / `br_bus` |
+| 依据 | `05-validation.md` 允许"用模块测试直接注入合法状态" |
+| **不得声称** | **本测试不代表课程程序会自然触发这些交叉条件**，仅为定向时序验证 |
+
+**C01：IF 被 ID 阻塞（`ds_allowin=0`）时发生 `pipe_flush`**
+
+| 检查点 | 结果 |
+|---|---|
+| 阻塞期间不发新请求、`fs_valid` 保持 | ✓ |
+| 冲刷当拍 `pipe_flush` 有效、旧指令不送 ID、不发请求 | ✓ |
+| 冲刷当拍 `redirect_pc` = `ex_entry` | ✓ |
+| 下一拍 `fs_valid` 清 0、目标已锁存、`redirect_pc_r` = 目标 | ✓ |
+| **保持 `ds_allowin=0` 时仍发出取指请求，地址即重定向目标** | ✓ **核心：跳转不因阻塞丢失** |
+| 再下一拍 `fs_pc` = 目标、新指令有效且可送 ID、目标已消费 | ✓ |
+
+**C02：分支与 WB 事件同拍；连续 redirect**
+
+| 检查点 | 结果 |
+|---|---|
+| 同拍 `pipe_flush` 有效，分支被取消（`fs_to_ds_valid=0`） | ✓ |
+| 组合 `redirect_pc` 取 `ex_entry` 而非 `br_target` | ✓ |
+| 锁存值为 WB 事件目标（`0x1c002000`），非分支目标（`0x1c001000`） | ✓ **WB 事件优先** |
+| 连续两次 redirect：第一个目标 `0x1c003000`，第二个覆盖为 `0x1c004000` | ✓ |
+| 最终取指地址为第二个目标，第一个目标从未被取 | ✓ |
+
+**C03：BRAM 旧响应在冲刷后到达**
+
+| 检查点 | 结果 |
+|---|---|
+| 冲刷当拍旧响应出现在 `inst_rdata`（`0x02800000`），但 `fs_to_ds_valid=0` | ✓ |
+| 下一拍 `fs_valid` 被清 0，旧响应丢弃 | ✓ |
+| 重定向目标锁存；释放后向新目标发请求且 `fs_pc` 更新 | ✓ |
+
+**C04：ERTN 冲刷通路**
+
+主闭环（EENTRY→syscall→handler→ERTN）已由 G4 的 ex8 `n47_syscall_ex_test` 覆盖（47/47 PASS，逐条写回匹配参考轨迹）。此处补的是流水线侧那个未被课程程序单独证明的事实：**ERTN 冲刷必须重定向到 `ertn_entry`，绝不能落到 `ex_entry`**。`ertn_entry` 即 CSR 的 ERA 输出，因此喂一个非原始返回地址，等价于"在 handler 内改 ERA 后 ERTN"。
+
+| 检查点 | 结果 |
+|---|---|
+| 仅 `ertn_flush` 有效时 `pipe_flush` 成立 | ✓ |
+| `redirect_pc` 取 `ertn_entry`（`0x1c006000`） | ✓ |
+| **同时投放的 `ex_entry`（`0x1c002222`）不生效** | ✓ **不会串到异常入口** |
+| `fs_valid` 被清 0、ERTN 目标锁存 | ✓ |
+| 释放后向 ERTN 目标发请求，`fs_pc` 更新、新指令有效 | ✓ |
+
+**复现**：
+
+```
+tests/team/integration/if_flush/run_if_flush.ps1
+```
+
+脚本自行推算仓库根，编译 `myCPU/*.v`（排除 `mycpu_head.v`，经 `-i` 包含）+ `tb_if_flush.sv`，elaborate 后运行并校验 `IF_FLUSH_PASS`。除法器使用占位模块（与 `tests/team/pipeline/tb_ex8_smoke.sv` 一致），一旦被请求立即 `$fatal`，兼作护栏。
+
+**日志**：`tests/team/integration/if_flush/if-flush-2026-10-30.log`（81 行，44 条 PASS）。
+
+**本阶段仍缺**：C05～C07 属 G5（ADEF 需先在 IF 实现；硬中断需 A/B 的 ex9 功能）。
+
+### 远程 bit 构建（ex8 代码，生成成功，时序未通过）
+
+2026-10-30 10:53，`looongson_remote_top` 远程 bit 构建完成。详细记录见
+`docs/verification/ex8/remote-bit-2026-10-30/build-summary.md`。
+
+| 项 | 值 |
+|---|---|
+| bit | `looongson_remote_top.bit`，4,773,807 B |
+| **SHA-256** | `FEC816DCB98DAC8666510385DB405D28DC8EAE308BED98ED2A5FBD42F618C5A8` |
+| 实现 ERROR | **0** |
+| 布线 | 14386 个可路由网全部布通，**0 routing error** |
+| DRC | **16 条，全部 Warning（DPOP-1/2 DSP 流水建议），无 Critical**（ex7 为 18 条） |
+| 资源 | LUT 3.95% / FF 3.14% / BRAM **87.67%** / DSP 1.08% / IOB 35.00% |
+
+**时序（关键，未通过且比 ex7 差）**：
+
+| 项 | ex7 | 本次 | 变化 |
+|---|---|---|---|
+| WNS | −1.127 ns | **−1.564 ns** | 恶化 0.437 ns |
+| TNS | −208.302 ns | **−462.940 ns** | 恶化 2.22 倍 |
+| 失败端点 | 566 | **1029** | +81.8% |
+| WHS | +0.019 ns | +0.031 ns | 略好 |
+| 约束 | not met | **not met** | 均未通过 |
+
+**结论必须分开写**：
+
+| 维度 | 结论 |
+|---|---|
+| 功能 | 本地 RTL 仿真 ex8 镜像 **47/47 PASS**；线上评测 **100 分（任务 6702）**。bit 本身未做逐条写回比对 |
+| 时序 | **未通过**（WNS −1.564 / TNS −462.940 / 1029 失败端点），相对 ex7 恶化，**不得声称继承 ex7 的 −1.127 ns** |
+| 线上 | **PASSED**，任务 ID **6702**，状态 Finished，得分 **100**，提交 2026-10-30 10:59:25，页面 `exp_8`，证据为用户提供的平台截图 |
+
+**线上 100 分不等于时序通过。** 评测平台判功能（bit 跑得对），不判静态时序是否收敛。ex7 的 −1.127 ns 同样在线上得了 100，本次 −1.564 ns 更差——功能正确与工艺余量是两件独立的事，06 文档要求分栏记录即是为此。
+
+**恶化原因（按影响排序）**：① 本次走 GUI 默认实现流程，**未执行 ex7 `build.tcl` 中的 `phys_opt_design -directive AggressiveExplore` + `route_design -directive Explore` 二次优化**；② ex8 新逻辑使时序端点 21,557→23,385（+8.5%）；③ 16 条 DPOP 警告指向乘法器 DSP 输出未加流水寄存器。
+
+**未执行的可选改进**：对 `impl_1` 设置 `PHYS_OPT_DESIGN.ARGS.DIRECTIVE=AggressiveExplore`、`ROUTE_DESIGN.ARGS.DIRECTIVE=Explore` 后重跑（约 25 分钟），或改用 ex7 的独立 `build.tcl` 流程。
+

@@ -1,0 +1,18 @@
+FEC816DCB98DAC8666510385DB405D28DC8EAE308BED98ED2A5FBD42F618C5A8  looongson_remote_top.bit
+4773807 bytes
+built 2026-10-30 10:53:58
+Vivado v2023.2 (win64) Build 4029153
+part xc7a200tfbg676-1
+top  looongson_remote_top
+
+online judge: PASSED
+  task id   : 6702
+  status    : Finished
+  score     : 100
+  submitted : 2026-10-30 10:59:25
+  page      : exp_8
+  evidence  : user-provided screenshot
+
+timing: NOT met (WNS -1.564 ns / TNS -462.940 ns / 1029 failing endpoints)
+  The online score reflects functional correctness only and does not imply
+  that static timing is satisfied.
