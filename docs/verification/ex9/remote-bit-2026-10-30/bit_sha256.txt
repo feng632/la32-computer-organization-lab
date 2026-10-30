@@ -1,0 +1,22 @@
+D6DD7FD1215C4E3C6CB03552C5520D96C2B202DCE910E0C7B914BBB5DADFDA03  looongson_remote_top.bit
+4961995 bytes
+built 2026-10-30 23:53:23
+Vivado v2023.2 (win64) Build 4029153
+part xc7a200tfbg676-1
+top  looongson_remote_top
+implementation directive: DEFAULT (no -directive on phys_opt_design / route_design)
+
+online judge: PASSED
+  task id   : 6785 (also 6784, same bitstream)
+  status    : Finished
+  score     : 100
+  page      : exp_9
+  note      : platform timestamp runs ~3 minutes behind local time;
+              both submissions used this exact bitstream
+  evidence  : user-provided screenshot
+
+timing: NOT met (WNS -2.931 ns / TNS -1472.562 ns / 2080 failing endpoints)
+  cpu_clk_clk_pll : 20.000 ns period, WNS -2.931, 2080 failing of 23879
+  timer_clk_clk_pll: 10.000 ns period, WNS +5.031, 0 failing of 66
+  The online score reflects functional correctness only and does not imply
+  that static timing is satisfied.

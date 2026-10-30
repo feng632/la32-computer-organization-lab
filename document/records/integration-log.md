@@ -668,6 +668,68 @@ A 的 `csr.v` 已实现中断采样（第 77 行 `ESTAT[9:2] <= hw_int_in`）、
 | ex9 的 bit 构建与线上评测 | 未做 |
 | C01~C07 之外的长时随机场景 | 未做 |
 
+### G6 ex9 构建与线上（本地功能 + 线上通过，时序未通过）
+
+2026-10-30 23:53，ex9 代码（`df191a9`）远程 bit 构建完成；线上评测两次提交均 100 分。
+详细记录见 `docs/verification/ex9/remote-bit-2026-10-30/build-summary.md`。
+
+| 项 | 值 |
+|---|---|
+| bit | `looongson_remote_top.bit`，**4,961,995 B** |
+| **SHA-256** | **`D6DD7FD1215C4E3C6CB03552C5520D96C2B202DCE910E0C7B914BBB5DADFDA03`** |
+| 实现 ERROR / 布线 error | **0 / 0** |
+| DRC | 16 条，全为 Warning（DPOP-1/2），无 Critical |
+| 资源 | LUT 5,342 (3.99%)、FF 8,721 (3.24%)、BRAM 320 (**87.67%**)、DSP 8、IOB 140 |
+| **线上** | **PASSED**，任务 **6785**（与 6784 同一 bitstream），得分 **100**，页面 `exp_9` |
+
+**时序（三代最差）**：
+
+| 项 | ex7 | ex8 | **ex9** |
+|---|---|---|---|
+| WNS | −1.127 | −1.564 | **−2.931** |
+| TNS | −208.302 | −462.940 | **−1472.562** |
+| 失败端点 | 566 | 1029 | **2080** |
+| 总端点 | 21,557 | 23,385 | 24,043 |
+
+按时钟域：`cpu_clk_clk_pll`（20 ns）WNS −2.931、2080/23879 失败；`timer_clk_clk_pll`（10 ns）
+WNS +5.031、0 失败。**失败全部在 CPU 域**，说明瓶颈是长组合路径而非高频时钟。
+
+**恶化原因**：① 端点只增 2.8% 而 WNS 恶化 87%，是**新增长关键路径**——`ID` 的五级异常
+优先级链（`has_int > ADEF > INE > SYS > BRK`，每级 49 位 mux 串联）+ `csr` 的
+`has_int` 跨模块长路径 + `EXE` 的 `ale → exc → mem_req_ok` 串接；② **本次未用实现
+directive**（`runme.log` 中 `phys_opt_design`/`route_design` 均无 `-directive`），
+原定 `AggressiveExplore`+`Explore` 因 `reset_run` 写在 `set_property` 之前被清掉；
+③ 16 条 DPOP 指向乘法器 DSP 输出未流水。
+
+**一条必须记住的经验：该评测平台的记录时间比本地慢约 3 分钟。**
+
+本次据此误判"上传了旧 bit"：平台显示任务 6784 提交于 23:51:37，而 bit 生成于 23:53:23，
+看似上传早于生成。实际用户点击时为本地 23:54 左右，**两次提交都晚于 bit 生成，用的是同一
+`d6dd7fd1` 版本**。后续任何"用平台时间倒推本地时序"的推断都不可靠，须以本地文件 mtime 和
+哈希为准。
+
+**优化尝试（已执行，失败）**：按正确顺序（先 `reset_run` 再 `set_property`）设置
+`PHYS_OPT_DESIGN.ARGS.DIRECTIVE=AggressiveExplore` 与 `ROUTE_DESIGN.ARGS.DIRECTIVE=Explore`
+重跑实现，`phys_opt_design` 阶段 **Vivado 崩溃**（`EXCEPTION_ACCESS_VIOLATION`）。
+
+崩溃前的日志更有价值：`AggressiveExplore` 反复处理 `u_id_stage/fs_pc[31]_i_*` 与
+`u_id_stage/rj_value[*]`，**每次均报 `Optimizations did not improve timing`**。这说明时序瓶颈在
+**RTL 组合逻辑深度**，不在布局布线。已放弃实现层优化，回退使用默认策略的 bit（`d6dd7fd1`）。
+
+**后续 RTL 优化方向（未执行，属 B 的模块）**：① `ID` 五级异常优先级链（每级 49 位 mux 串联）
+改为分字段选择后拼一次总线；② `csr` 的 `has_int` 13 位与或是跨模块长路径，可考虑打拍但会改变
+中断响应时序；③ `EXE` 的 `ale → exc → mem_req_ok` 三级串联可并行化。详见
+`docs/verification/ex9/remote-bit-2026-10-30/build-summary.md` 第 7 节。
+
+
+**三条结论分开记**：功能 = 仿真 58/58 + 线上 100；时序 = **未通过**，不得沿用 ex8 的 −1.564；
+线上 = 通过，两次 100 分。
+
+**G6 至此完成**：bit 构建、线上评测、时序记录、优化尝试（失败并归档）四件事齐全。交付的 bit
+副本命名为 `ex9_remote.bit`（`d6dd7fd1`），时序版本快照 `ex9_remote_wns_m2931_100.bit` 保留作对照。
+
+
+
 
 
 
