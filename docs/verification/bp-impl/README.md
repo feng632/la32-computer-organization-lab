@@ -103,3 +103,30 @@ arrival 26.145 ns   required 17.274 ns   slack −8.871
   - C：`bp_query_pc` 改用 `seq_pc` 而非 `fetch_addr`（查表链路提前约 5~6 ns，
     代价是 redirect 后第一次取指不查表）
 - bit 生成与 SHA-256（仅在时序结论明确后）。
+
+## 工程当前状态（复现时先看这一节）
+
+`loongson.xpr` 里固定了以下两项，**不是遗漏，是刻意保留**：
+
+1. `synth_1` 的 `STEPS.SYNTH_DESIGN.ARGS.MORE OPTIONS = {-verilog_define BP_ENABLE_ON}`。
+   因此**打开工程直接跑综合得到的就是 BP=1**，与本文件记录的数据一致。
+   要复现 BP=0 基线，先把该选项清空：
+
+   ```tcl
+   reset_property {STEPS.SYNTH_DESIGN.ARGS.MORE OPTIONS} [get_runs synth_1]
+   ```
+
+2. `utils_1` 引用了 `imports/synth_1/looongson_remote_top.dcp`（增量综合的参考 checkpoint）。
+   该文件是综合中间产物，被 `.gitignore` 排除，重新 clone 后不会有。
+   表现：打开工程可能出现文件缺失提示，增量综合不可用，**Vivado 会自动回退全量综合，不影响结果**。
+
+另外两套宏要分清，不能互相替代：
+
+| 用途 | 设置位置 |
+|---|---|
+| 仿真 | `xsim.compile.xvlog.more_options = {-d BP_ENABLE_ON}` |
+| 综合 | `STEPS.SYNTH_DESIGN.ARGS.MORE OPTIONS = {-verilog_define BP_ENABLE_ON}` |
+
+改了任一处的宏，都要按对应的方式让工具重新编译：
+仿真改宏后必须 `close_sim` + `reset_simulation` 再 launch，
+否则 `xvlog --incr` 会因"源文件内容未变"跳过重编，拿到上一次的结果。
