@@ -31,6 +31,16 @@ See [2026-10-30 result and scope](ex9-result-2026-10-30.md).
 Run `run_ex9.ps1` for the 12 real-CPU/CSR program cases and the separate
 ID/EXE/MEM control bench. These do not constitute full course ex9 acceptance.
 
+## Branch-prediction ID verification
+
+See [2026-10-31 result and scope](bp-id-result-2026-10-31.md).
+Run `./tests/team/pipeline/run_bp_id.ps1` from the repository root in PowerShell.
+Uses the real ID, register file and decoders with port stimuli only; no force or
+CPU-source edits. Final result: 89 scenarios, 693 checks, 79 update edges,
+53 correction edges, ending at 3170 ns. The runner validates an exact PASS marker
+and input hashes. This is B's module test, not real predictor/IF integration,
+course regression, performance measurement, bit generation or timing closure.
+
 ## Reproduce in PowerShell
 
 Run from the repository root. Generated files go to a new temporary directory.

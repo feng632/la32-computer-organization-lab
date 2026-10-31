@@ -829,3 +829,58 @@ directive**（`runme.log` 中 `phys_opt_design`/`route_design` 均无 `-directiv
 
 10 文档第 8 节称"12 个保留总线宏与基线源码相符"。实际 `mycpu_head.v` 含 **12 个 `define`，其中 11 个为总线宏，另 1 个为 include guard `MYCPU_HEAD_H`**；`branch-prediction-v1.json` 的 `preserved_widths` 恰好列 11 项，与源码相符。故文档计数应改为 11。不阻塞实施，建议由文档负责人 B 修正措辞。
 
+### BP.5 C 侧实现（IF 与顶层预留，已通过 P1 + ex9 回归）
+
+2026-10-31，C 在 `feat/bp-fetch` 完成 IF 改造与顶层预留接线。**预测器尚未接入**：A 的 `branch_predictor.v` 未交付，顶层暂以 tie-off 顶替，`BP_ENABLE` 参数已就位但尚未连到预测器 enable。
+
+| 文件 | 改动 |
+|---|---|
+| `myCPU/IF_stage.v` | 新增端口 `bp_query_pc`(out)、`bp_query_hit`/`bp_predict_taken`/`bp_predict_target`(in)、`fs_to_ds_bp[33:0]`(out)；`br_taken`/`br_target` 更名 `bp_redirect_valid`/`bp_redirect_pc` 并按纠正语义使用；`seq_pc` 由 `fs_pc+4` 改为游标 `bp_next_pc_r`（复位值 `0x1c000000`）；新增 `bp_hit_r`/`bp_taken_r`/`bp_next_pc_r` 在 `fetch_req \|\| fetch_exc` 沿锁存；`fs_to_ds_bp` 取锁存值 |
+| `myCPU/mycpu_top.v` | 新增参数 `BP_ENABLE=0`；新增 `bp_query_*`、`fs_to_ds_bp` 连线；预测器输入暂 `assign` 为 0，附 `TODO(BP-1)` 说明接入点 |
+
+**关键一行**：`fs_to_ds_valid` 的屏蔽条件由 `!br_taken`（实际跳转）改为 `!bp_redirect_valid`（预测错误）。否则预测命中且实际跳转时，正确路径的下一条指令会被误杀。
+
+**P1 结果**（`tests/team/integration/bp_fetch/`，**77 项检查 0 失败**，`BP_FETCH_PASS`）：
+
+| 场景 | 验证内容 | 结果 |
+|---|---|---|
+| BP8 | 复位后首个请求 = `0x1c000000`，游标复位值正确 | ✓ |
+| BP1 | 查询地址 = 请求地址；预测信息与 `fs_pc`/RAM 响应同拍锁存；**命中且跳转时不取消指令**；游标按预测前进 | ✓ |
+| BP2 | 阻塞期间 PC 与预测信息保持，中途改变查询输入不漂移（无实时重查） | ✓ |
+| BP3 | 纠正当拍旧指令不送 ID、同拍发新请求、新响应不被清 valid 丢弃 | ✓ |
+| BP4 | 冲刷与纠正同拍时只认 WB 目标，锁存目标优先于纠正 | ✓ |
+| BP5 | 锁存目标不被同拍纠正覆盖；`ds_allowin=0` 时目标仍发出 | ✓ |
+| BP6 | 纠正到未对齐地址：不发 RAM 请求、`ecode=0x08`、`badv`=该地址、指令字强制 0、预测信息强制 `{0,0,PC+4}` | ✓ |
+| BP7 | 错误路径的 ADEF 在纠正到正确目标后被取消，新路径无 ADEF | ✓ |
+
+激励方式为 force 顶层信号（`ds_allowin`/`br_bus`/`bp_query_*`/`wb_ex`），属 05 允许的模块激励，**不代表课程程序自然触发**；TB 不例化 A 的预测器，**不构成对预测算法的任何验证**。
+
+**ex9 回归（关键证据）**：改后重跑完整课程镜像，**58/58 PASS，`$finish 2041015 ns`，与 G6 完全一致，0 条 Error**。说明"顶层 tie-off + 预测关闭"时 IF 重写与原实现行为等价。日志：`docs/verification/ex9/ex9-after-bp-if-2026-10-31.log`。
+
+> **等价性的前提必须写明**：本次回归中 B 的 ID 仍按旧语义输出 `br_bus`（实际跳转事件），恰好与 IF 新解读的"纠正事件"等价。B 改为"比较 `next_pc` 后发纠正"之后，**必须重跑本回归**，该等价性不再自动成立。
+
+**新增文件**：`tests/team/integration/bp_fetch/tb_bp_fetch.sv`、`run_bp_fetch.ps1`（一键复现，已实测 exit 0）、`bp-fetch-2026-10-31.log`。
+
+**尚未完成**：① `branch_predictor` 例化（等 A）；② `fs_to_ds_bp` 接入 ID（等 B 增加端口）；③ `BP_ENABLE=1` 的联合回归与 P3 性能采集；④ 综合、静态时序、bit 构建、线上评测——**本次未做任何综合或时序结论**。
+
+### BP.6 联合回归（C 的 IF + B 的 ID，预测关闭）
+
+2026-10-31，合入 B 的 `cb3b1bc`（ID 的纠正与更新通路），顶层接通 `fs_to_ds_bp` → ID；`bp_update_bus` 由 ID 引出成 wire，待 A 的预测器接入。合并**无文件冲突**（B 未改 IF 与顶层）。
+
+| 项 | 结果 |
+|---|---|
+| 编译 | `xvlog` 26 文件 **0 ERROR**；`xvhdl` **0 ERROR**；`xelab` **0 ERROR / 0 WARNING**（`div` 由 IP 提供属预期） |
+| C 的 P1 八场景 | **77 项 0 失败**（在 B 的 ID 在场时重跑） |
+| ex9 课程镜像 | **58/58 PASS，0 条 `Error!!!`** |
+| `$finish` | **2039015 ns**（IF-only 阶段为 2041015 ns，**少 2000 ns = 100 个周期**） |
+
+**逐测试点对照**：点 1～18 时刻完全一致；自点 19 起整体少 2000 ns，此后不再漂移——说明是**一次性的**周期节省，而非持续性加速或减速。
+
+**已定位的原因（实现差异，非功能错误）**：旧实现只要 `br_taken`（实际跳转）为 1 就取消 IF 指令；即使分支目标恰好等于顺序地址（ex9 中 `1c02e714: bl 4` 即跳到自身 PC+4），也要取消并重新取指，白丢 1～2 拍。新实现改为"保存的 `next_pc` 与实际 `next_pc` 不同才纠正"，目标等于顺序地址时不产生纠正，因此不再丢拍。该模式在 ex9 的执行路径中与观测到的分歧段（`n19_jirl_test`）吻合。**具体节省的拍数未逐条计数**，属推断范围。
+
+**判据调整（重要）**：10 文档第 1 节明确"关闭时功能应与 ex9 一致，**但不要求与旧 RTL 逐拍相同**"。因此 **`$finish` 时刻不再是本阶段的回归判据**，唯一判据是写回轨迹与 `gettrace/golden_trace.txt` 逐条一致（即 58/58 且 0 条 `Error!!!`）。BP=1 的验证同理：只比较写回序列，不比较结束时刻；结束时刻仅作为性能观测值记录。
+
+日志：`docs/verification/ex9/ex9-joint-bp-if-id-2026-10-31.log`。
+
+**尚未完成**：① 预测器例化（等 A）；② `BP_ENABLE=1` 的联合回归与 P3 性能采集；③ 综合、静态时序、bit、线上——本次未做任何综合或时序结论。
+

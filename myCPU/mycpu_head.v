@@ -28,4 +28,10 @@
 
 // ID -> EXE -> MEM -> WB：并行元数据
 `define PIPE_META_WD 164
+
+// IF -> ID：取指时保存的预测信息
+`define BP_META_WD 34
+
+// ID -> 预测器：当前指令的实际执行结果
+`define BP_UPDATE_WD 68
 `endif

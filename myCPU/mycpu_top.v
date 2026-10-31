@@ -1,6 +1,10 @@
 `include "mycpu_head.v"
 
-module mycpu_top(
+module mycpu_top #(
+    // 分支预测开关（TEAM-BP-1.0）：只传给预测器 enable，外部引脚不变。
+    // 关闭时仍走同一套纠正逻辑，只是所有预测均为顺序地址。
+    parameter BP_ENABLE = 1'b0
+)(
     input  wire        clk,
     input  wire        resetn,
 
@@ -119,6 +123,23 @@ module mycpu_top(
     assign pipe_flush  = wb_ex || ertn_flush;
     assign redirect_pc = wb_ex ? ex_entry : ertn_entry;
 
+    /*
+     * 分支预测（TEAM-BP-1.0）
+     */
+    wire [31:0] bp_query_pc;
+    wire        bp_query_hit;
+    wire        bp_predict_taken;
+    wire [31:0] bp_predict_target;
+    wire [33:0] fs_to_ds_bp;
+    wire [67:0] bp_update_bus;
+
+    // TODO(BP-1)：A 的 branch_predictor.v 交付后删除以下三行 tie-off，
+    // 改为例化 branch_predictor，并接上 bp_query_pc 与 bp_update_bus。
+    // 现阶段按 enable=0 的语义接线：无预测，后继恒为顺序地址。
+    assign bp_query_hit      = 1'b0;
+    assign bp_predict_taken  = 1'b0;
+    assign bp_predict_target = 32'b0;
+
     // IF：取指
     IF_stage u_if_stage(
         .clk             (clk),
@@ -127,12 +148,18 @@ module mycpu_top(
         .ds_allowin      (ds_allowin),
         .br_bus          (br_bus),
 
+        .bp_query_pc       (bp_query_pc),
+        .bp_query_hit      (bp_query_hit),
+        .bp_predict_taken  (bp_predict_taken),
+        .bp_predict_target (bp_predict_target),
+
         .pipe_flush      (pipe_flush),
         .redirect_pc     (redirect_pc),
 
         .fs_to_ds_valid  (fs_to_ds_valid),
         .fs_to_ds_bus    (fs_to_ds_bus),
         .fs_to_ds_ex     (fs_to_ds_ex),
+        .fs_to_ds_bp     (fs_to_ds_bp),
 
         .inst_sram_en    (inst_sram_en),
         .inst_sram_we    (inst_sram_we),
@@ -162,12 +189,15 @@ module mycpu_top(
         .fs_to_ds_valid     (fs_to_ds_valid),
         .fs_to_ds_bus       (fs_to_ds_bus),
         .fs_to_ds_ex        (fs_to_ds_ex),
+        .fs_to_ds_bp        (fs_to_ds_bp),
 
         .ds_to_es_valid     (ds_to_es_valid),
         .ds_to_es_bus       (ds_to_es_bus),
         .ds_to_es_meta      (ds_to_es_meta),
 
         .br_bus             (br_bus),
+        // 待 A 的 branch_predictor 交付后接入其 bp_update_bus 输入
+        .bp_update_bus      (bp_update_bus),
         .ws_to_rf_bus       (ws_to_rf_bus),
 
         .es_to_ds_bus       (es_to_ds_bus),
