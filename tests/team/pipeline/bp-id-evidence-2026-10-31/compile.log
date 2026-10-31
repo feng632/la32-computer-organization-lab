@@ -1,0 +1,11 @@
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/myCPU/ID_stage.v" into library work
+INFO: [VRFC 10-311] analyzing module ID_stage
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/myCPU/regfile.v" into library work
+INFO: [VRFC 10-311] analyzing module regfile
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/myCPU/tools.v" into library work
+INFO: [VRFC 10-311] analyzing module decoder_2_4
+INFO: [VRFC 10-311] analyzing module decoder_4_16
+INFO: [VRFC 10-311] analyzing module decoder_5_32
+INFO: [VRFC 10-311] analyzing module decoder_6_64
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "E:/LA32/la32-computer-organization-lab/tests/team/pipeline/tb_bp_id.sv" into library work
+INFO: [VRFC 10-311] analyzing module tb_bp_id

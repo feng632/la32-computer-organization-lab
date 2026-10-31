@@ -29,6 +29,8 @@ module ID_stage(
     input  wire [`FS_TO_DS_BUS_WD-1:0]  fs_to_ds_bus,
     input wire [`EXC_BUS_WD-1:0] fs_to_ds_ex,
 
+    input wire [`BP_META_WD-1:0] fs_to_ds_bp,
+
     // 发送给EXE级
     output wire                         ds_to_es_valid,
     output wire [`DS_TO_ES_BUS_WD-1:0]  ds_to_es_bus,
@@ -37,6 +39,9 @@ module ID_stage(
 
     // 发送给IF级的分支信息
     output wire [`BR_BUS_WD-1:0]        br_bus,
+
+    // 交给预测器，用于更新历史记录
+    output wire [`BP_UPDATE_WD-1:0] bp_update_bus,
 
     // 来自WB级的寄存器写回信息
     input  wire [`WS_TO_RF_BUS_WD-1:0]  ws_to_rf_bus,
@@ -61,6 +66,8 @@ module ID_stage(
     reg [`FS_TO_DS_BUS_WD-1:0] fs_to_ds_bus_r;
 
     reg [`EXC_BUS_WD-1:0] fs_to_ds_ex_r;
+
+    reg [`BP_META_WD-1:0] fs_to_ds_bp_r;
 
 
     // ID级当前使用的指令和PC
@@ -212,8 +219,21 @@ module ID_stage(
     wire        rj_eq_rkd;
     wire        rj_lt_rkd;
     wire        rj_ltu_rkd;
-    wire        br_taken;
+    
+    wire        id_fire;
+    wire        normal_fire;
+    wire        bp_redirect_valid;
+    wire [31:0] bp_redirect_pc;
+
+
     wire [31:0] br_target;
+
+    // 当前指令实际是否跳转，以及实际下一地址
+    wire        actual_taken;
+    wire [31:0] actual_next;
+
+    wire is_cond;
+    wire is_branch;
 
     // 送往EXE的两个ALU操作数
     wire [31:0] alu_src1;
@@ -672,6 +692,7 @@ module ID_stage(
         if (fs_to_ds_valid && ds_allowin && !pipe_flush) begin
             fs_to_ds_bus_r <= fs_to_ds_bus;
             fs_to_ds_ex_r  <= fs_to_ds_ex;
+            fs_to_ds_bp_r  <= fs_to_ds_bp;
         end
     end
 
@@ -732,7 +753,7 @@ module ID_stage(
         32'b0                           // cnt_value
     };
     
-    assign br_bus = {br_taken, br_target};
+    assign br_bus = {bp_redirect_valid, bp_redirect_pc};
 
     // ALU操作类型
     assign alu_op[0] =
@@ -1113,25 +1134,55 @@ module ID_stage(
     assign rj_ltu_rkd =
         ($unsigned(rj_value) < $unsigned(rkd_value));
 
-    assign br_taken =
-        (
-            (inst_beq &&  rj_eq_rkd) ||
-            (inst_bne && !rj_eq_rkd) ||
-            (inst_blt &&  rj_lt_rkd) ||
-            (inst_bge && !rj_lt_rkd) ||
-            (inst_bltu && rj_ltu_rkd) ||
-            (inst_bgeu && !rj_ltu_rkd) ||
-            inst_jirl ||
-            inst_bl   ||
-            inst_b
-        ) && ds_valid && ds_ready_go
-          && es_allowin && !pipe_flush && !ds_exc[48];
+    assign is_cond =
+        inst_beq || inst_bne ||
+        inst_blt || inst_bge ||
+        inst_bltu || inst_bgeu;
+
+    assign is_branch =
+        is_cond || inst_b || inst_bl || inst_jirl;
+
+    assign actual_taken =
+        (inst_beq &&  rj_eq_rkd) ||
+        (inst_bne && !rj_eq_rkd) ||
+        (inst_blt &&  rj_lt_rkd) ||
+        (inst_bge && !rj_lt_rkd) ||
+        (inst_bltu && rj_ltu_rkd) ||
+        (inst_bgeu && !rj_ltu_rkd) ||
+        inst_jirl ||
+        inst_bl   ||
+        inst_b;
+
+    assign id_fire =
+        ds_to_es_valid && es_allowin && !reset;
+
+    assign normal_fire =
+        id_fire && !ds_exc[48] && !inst_ertn;
+
+    assign bp_redirect_valid =
+        normal_fire && (fs_to_ds_bp_r[31:0] != actual_next);
+
+    assign bp_redirect_pc =
+        bp_redirect_valid ? actual_next : 32'b0;
 
     //两类目标地址的计算方法
     assign br_target =
         (inst_beq || inst_bne || inst_blt || inst_bge || inst_bltu || inst_bgeu || inst_bl || inst_b)
         ? ds_pc + br_offs
         : rj_value + jirl_offs;
+
+    assign actual_next =
+        actual_taken ? br_target : ds_pc + 32'd4;
+
+    assign bp_update_bus =
+        normal_fire ? {
+            1'b1,
+            is_branch,
+            is_cond,
+            actual_taken,
+            ds_pc,
+            is_branch ? br_target : 32'b0
+        } : {`BP_UPDATE_WD{1'b0}};
 
     //选择两个操作数
     assign alu_src1 =

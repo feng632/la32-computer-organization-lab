@@ -1,0 +1,25 @@
+#-----------------------------------------------------------
+# xsim v2023.2 (64-bit)
+# SW Build 4029153 on Fri Oct 13 20:14:34 MDT 2023
+# IP Build 4028589 on Sat Oct 14 00:45:43 MDT 2023
+# SharedData Build 4025554 on Tue Oct 10 17:18:54 MDT 2023
+# Start of session at: Sat Oct 31 15:46:49 2026
+# Process ID: 35308
+# Current directory: C:/Users/feng/AppData/Local/Temp/la32-bp-id-cc85f8f7d29d473b9dd4835904ce9ffb
+# Command line: xsim.exe -log simulation.log -mode tcl -source {xsim.dir/bp_id/xsim_script.tcl}
+# Log file: C:/Users/feng/AppData/Local/Temp/la32-bp-id-cc85f8f7d29d473b9dd4835904ce9ffb/simulation.log
+# Journal file: C:/Users/feng/AppData/Local/Temp/la32-bp-id-cc85f8f7d29d473b9dd4835904ce9ffb\xsim.jou
+# Running On: LAPTOP-BLV935B0, OS: Windows, CPU Frequency: 2419 MHz, CPU Physical cores: 16, Host memory: 16890 MB
+#-----------------------------------------------------------
+source xsim.dir/bp_id/xsim_script.tcl
+# xsim {bp_id} -autoloadwcfg -runall
+Time resolution is 1 ps
+run -all
+PASS conditional branches cases=54
+PASS jumps, links, ordinary false predictions and wrap
+PASS backpressure, metadata hold, load-use, EXE wait, serialization
+PASS exceptions, interrupts, ERTN, CSR, flush and reset
+BP_ID_PASS cases=89 checks=693 updates=79 redirects=53
+$finish called at time : 3170 ns : File "E:/LA32/la32-computer-organization-lab/tests/team/pipeline/tb_bp_id.sv" Line 235
+exit
+INFO: [Common 17-206] Exiting xsim at Sat Oct 31 15:46:51 2026...
