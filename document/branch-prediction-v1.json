@@ -1,0 +1,51 @@
+{
+  "version": "TEAM-BP-1.0",
+  "status": "specified_not_implemented",
+  "base_commit": "757f51bda7ec14474fdf074b271adbc06ec759da",
+  "preserved_abi": "TEAM-ABI-1.0",
+  "br_bus_extension_semantics": "{redirect_valid,correct_next_pc}; IF-only correction, never pipe_flush",
+  "enable": {"top_parameter": "BP_ENABLE", "default": 0, "runtime_switching": false},
+  "predictor": {
+    "module": "branch_predictor",
+    "entries": 64,
+    "index": [7, 2],
+    "tag": [31, 8],
+    "entry_bits": 60,
+    "query": "combinational, sampled at fetch edge before same-edge update",
+    "update": "posedge clk; synchronous active-high reset has priority",
+    "ports": {
+      "clk": ["input", 1], "reset": ["input", 1], "enable": ["input", 1],
+      "query_pc": ["input", 32], "query_hit": ["output", 1],
+      "predict_taken": ["output", 1], "predict_target": ["output", 32],
+      "bp_update_bus": ["input", 68]
+    }
+  },
+  "buses": {
+    "fs_to_ds_bp": {
+      "macro": "BP_META_WD", "width": 34,
+      "fields": {"hit": [33, 33], "taken": [32, 32], "next_pc": [31, 0]},
+      "capture": "fs_to_ds_valid && ds_allowin && !pipe_flush"
+    },
+    "bp_update_bus": {
+      "macro": "BP_UPDATE_WD", "width": 68,
+      "fields": {
+        "valid": [67, 67], "is_branch": [66, 66], "is_cond": [65, 65],
+        "taken": [64, 64], "pc": [63, 32], "target": [31, 0]
+      },
+      "valid": "ds_to_es_valid && es_allowin && !reset && !ds_exc[48] && !inst_ertn",
+      "invalid_bus_value": 0
+    }
+  },
+  "preserved_widths": {
+    "BR_BUS_WD": 33, "FS_TO_DS_BUS_WD": 64, "DS_TO_ES_BUS_WD": 160,
+    "ES_TO_MS_BUS_WD": 107, "MS_TO_WS_BUS_WD": 70, "WS_TO_RF_BUS_WD": 38,
+    "ES_TO_DS_BUS_WD": 41, "MS_TO_DS_BUS_WD": 39, "WS_TO_DS_BUS_WD": 39,
+    "EXC_BUS_WD": 49, "PIPE_META_WD": 164
+  },
+  "owners": {
+    "A": ["myCPU/branch_predictor.v", "tests/team/predictor/"],
+    "B": ["myCPU/ID_stage.v", "myCPU/mycpu_head.v", "tests/team/pipeline/"],
+    "C": ["myCPU/IF_stage.v", "myCPU/mycpu_top.v", "SoC/project", "tests/team/integration/"]
+  },
+  "validation": {"design_review": "completed", "rtl": "not_run", "course": "not_run", "timing": "not_run", "online": "not_run"}
+}
