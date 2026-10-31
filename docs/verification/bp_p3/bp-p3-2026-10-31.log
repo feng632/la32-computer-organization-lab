@@ -1,0 +1,61 @@
+=== 1. 汇编器自检 ===
+自检结果: 全部通过
+
+=== 2. 汇编测试程序 ===
+  p1_loop        <- p1_loop.s
+  p10_alt        <- p10_alt.s
+  p2_wrong       <- p2_wrong.s
+  p3_conflict    <- p3_conflict.s
+  p4_jirl        <- p4_jirl.s
+  p7_csr_wrong   <- p7_csr_wrong.s
+  p8_syscall_wrong <- p8_syscall_wrong.s
+  p9_cross       <- p9_cross.s
+  p5_nested      <- p5_nested.s
+  p6_chain       <- p6_chain.s
+
+=== 3. 编译 RTL + TB (两套配置) ===
+  bp0: xvlog / xelab 通过
+  bp1: xvlog / xelab 通过
+
+=== 4. 逐程序 × 逐配置运行 ===
+  p1_loop        pass  cycles     50 ->     43  ( 14.0% faster)  acc  72.7%
+  p10_alt        pass  cycles     91 ->     87  (  4.4% faster)  acc  39.4%
+  p2_wrong       pass  cycles     14 ->     14  (  0.0% faster)  acc   0.0%
+  p3_conflict    pass  cycles     17 ->     17  (  0.0% faster)  acc  50.0%
+  p4_jirl        pass  cycles     43 ->     43  (  0.0% faster)  acc  36.4%
+  p7_csr_wrong   pass  cycles     34 ->     31  (  8.8% faster)  acc  42.9%
+  p8_syscall_wrong pass  cycles     28 ->     26  (  7.1% faster)  acc  42.9%
+  p9_cross       pass  cycles     34 ->     32  (  5.9% faster)  acc  42.9%
+  p5_nested      pass  cycles    118 ->    102  ( 13.6% faster)  acc  72.4%
+  p6_chain       pass  cycles     19 ->     19  (  0.0% faster)  acc  50.0%
+
+=== 5. 汇总表 ===
+
+program          bp  cycles inst ipc   branch btb_hit ok acc   redir cold dir tgt miss nb_redir cpi  
+-------          --  ------ ---- ---   ------ ------- -- ---   ----- ---- --- --- ---- -------- ---  
+p1_loop          bp0     50   37 0.740     11       0  1 9.1%     10   10   0   0    0        0 1.471
+p1_loop          bp1     43   37 0.861     11       9  8 72.7%     3    2   1   0    0        0 1.265
+p10_alt          bp0     91   64 0.703     33       0  9 27.3%    24   24   0   0    0        0 1.492
+p10_alt          bp1     87   64 0.736     33      27 13 39.4%    20    5   8   0    7        0 1.426
+p2_wrong         bp0     14    9 0.643      2       0  0 0.0%      2    2   0   0    0        0 2.333
+p2_wrong         bp1     14    9 0.643      2       0  0 0.0%      2    2   0   0    0        0 2.333
+p3_conflict      bp0     17   12 0.706      4       0  2 50.0%     2    2   0   0    0        0 1.889
+p3_conflict      bp1     17   12 0.706      4       0  2 50.0%     2    2   0   0    0        0 1.889
+p4_jirl          bp0     43   33 0.767     11       0  4 36.4%     7    7   0   0    0        0 1.433
+p4_jirl          bp1     43   33 0.767     11       5  4 36.4%     7    5   2   0    0        0 1.433
+p5_nested        bp0    118   91 0.771     29       0  5 17.2%    24   24   0   0    0        0 1.341
+p5_nested        bp1    102   91 0.892     29      26 21 72.4%     8    3   5   0    0        0 1.159
+p6_chain         bp0     19   14 0.737      4       0  2 50.0%     2    2   0   0    0        0 1.727
+p6_chain         bp1     19   14 0.737      4       0  2 50.0%     2    2   0   0    0        0 1.727
+p7_csr_wrong     bp0     34   19 0.559      7       0  1 14.3%     6    6   0   0    0        0 2.125
+p7_csr_wrong     bp1     31   19 0.613      7       4  3 42.9%     4    3   1   0    0        0 1.938
+p8_syscall_wrong bp0     28   19 0.679      7       0  1 14.3%     6    6   0   0    0        0 1.750
+p8_syscall_wrong bp1     26   19 0.731      7       4  3 42.9%     4    3   1   0    0        0 1.625
+p9_cross         bp0     34   22 0.647      7       0  1 14.3%     6    6   0   0    0        0 1.790
+p9_cross         bp1     32   22 0.688      7       4  3 42.9%     4    3   1   0    0        0 1.684
+
+
+
+汇总已写入 C:\Temp\bp_p3_run_1031_225804\summary.csv
+
+RESULT: PASS

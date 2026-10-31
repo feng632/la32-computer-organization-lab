@@ -1,0 +1,57 @@
+### sim_p1_loop_p2_bp1.log
+  [INFO] 到达结束标志，用时 43 拍，最后 wb_pc=0x1c00001c
+  [PASS]                             reg r5 = 0x0000001e
+  [PASS]                             mem[0] = 0x0000001e
+P2_SUMMARY checks=2 fails=0 cycles=43
+P2_PASS
+INFO: [Common 17-206] Exiting xsim at Sat Oct 31 22:54:58 2026...
+
+### sim_p2_wrong_p2_bp1.log
+  [INFO] 到达结束标志，用时 14 拍，最后 wb_pc=0x1c000020
+  [PASS]                             mem[0] = 0x0000dead
+  [PASS]                             mem[1] = 0x00000000
+P2_SUMMARY checks=2 fails=0 cycles=14
+P2_PASS
+INFO: [Common 17-206] Exiting xsim at Sat Oct 31 22:55:01 2026...
+
+### sim_p3_conflict_p2_bp1.log
+  [INFO] 到达结束标志，用时 17 拍，最后 wb_pc=0x1c000104
+  [PASS]                             reg r5 = 0x00000007
+  [PASS]                             mem[0] = 0x00000007
+P2_SUMMARY checks=2 fails=0 cycles=17
+P2_PASS
+INFO: [Common 17-206] Exiting xsim at Sat Oct 31 22:55:04 2026...
+
+### sim_p4_jirl_p2_bp1.log
+  [INFO] 到达结束标志，用时 43 拍，最后 wb_pc=0x1c000048
+  [PASS]                             reg r5 = 0x00000005
+  [PASS]                             mem[0] = 0x00000005
+P2_SUMMARY checks=2 fails=0 cycles=43
+P2_PASS
+INFO: [Common 17-206] Exiting xsim at Sat Oct 31 22:55:07 2026...
+
+### sim_p7_csr_wrong_p2_bp1.log
+  [INFO] 到达结束标志，用时 31 拍，最后 wb_pc=0x1c000030
+  [PASS]                             reg r6 = 0x00005a5a
+  [PASS]                             reg r7 = 0x00000000
+  [PASS]                             mem[0] = 0x00000000
+  [PASS]                             mem[1] = 0x00005a5a
+P2_SUMMARY checks=4 fails=0 cycles=31
+P2_PASS
+INFO: [Common 17-206] Exiting xsim at Sat Oct 31 22:55:10 2026...
+
+### sim_p8_syscall_wrong_p2_bp1.log
+  [INFO] 到达结束标志，用时 26 拍，最后 wb_pc=0x1c000028
+  [PASS]                            reg r10 = 0x00000003
+  [PASS]                             mem[0] = 0x00000003
+P2_SUMMARY checks=2 fails=0 cycles=26
+P2_PASS
+INFO: [Common 17-206] Exiting xsim at Sat Oct 31 22:55:13 2026...
+
+### sim_p9_cross_p2_bp1.log
+  [INFO] 到达结束标志，用时 32 拍，最后 wb_pc=0x1c000028
+  [PASS]                             reg r6 = 0x00000003
+  [PASS]                             mem[0] = 0x00000003
+P2_SUMMARY checks=2 fails=0 cycles=32
+P2_PASS
+INFO: [Common 17-206] Exiting xsim at Sat Oct 31 22:55:16 2026...

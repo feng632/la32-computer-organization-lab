@@ -138,7 +138,17 @@ wire [31:0] conf_wdata;
 wire [31:0] conf_rdata;
 
 //cpu
-mycpu_top cpu(
+// 分支预测开关（TEAM-BP-1.0）：默认关闭，行为与 ex9 一致。
+// 需要验证开启后的行为时，编译加 -d BP_ENABLE_ON，不必改任何 RTL 默认值。
+`ifdef BP_ENABLE_ON
+localparam BP_EN = 1'b1;
+`else
+localparam BP_EN = 1'b0;
+`endif
+
+mycpu_top #(
+    .BP_ENABLE        (BP_EN       )
+) cpu(
     .clk              (cpu_clk   ),
     .resetn           (cpu_resetn),  //low active
     .hw_int_in        (8'b0      ),  //ex9外部硬中断；本SoC无中断源，显式接0，不得悬空

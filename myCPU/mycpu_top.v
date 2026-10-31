@@ -133,12 +133,18 @@ module mycpu_top #(
     wire [33:0] fs_to_ds_bp;
     wire [67:0] bp_update_bus;
 
-    // TODO(BP-1)：A 的 branch_predictor.v 交付后删除以下三行 tie-off，
-    // 改为例化 branch_predictor，并接上 bp_query_pc 与 bp_update_bus。
-    // 现阶段按 enable=0 的语义接线：无预测，后继恒为顺序地址。
-    assign bp_query_hit      = 1'b0;
-    assign bp_predict_taken  = 1'b0;
-    assign bp_predict_target = 32'b0;
+    // 分支预测器（TEAM-BP-1.0，A 实现）
+    // enable 由参数 BP_ENABLE 构建时固定，不运行中切换
+    branch_predictor u_branch_predictor (
+        .clk            (clk),
+        .reset          (reset),
+        .enable         (BP_ENABLE),
+        .query_pc       (bp_query_pc),
+        .bp_update_bus  (bp_update_bus),
+        .query_hit      (bp_query_hit),
+        .predict_taken  (bp_predict_taken),
+        .predict_target (bp_predict_target)
+    );
 
     // IF：取指
     IF_stage u_if_stage(
