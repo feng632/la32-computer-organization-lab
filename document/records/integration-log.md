@@ -771,3 +771,61 @@ directive**（`runme.log` 中 `phys_opt_design`/`route_design` 均无 `-directiv
 
 **未执行的可选改进**：对 `impl_1` 设置 `PHYS_OPT_DESIGN.ARGS.DIRECTIVE=AggressiveExplore`、`ROUTE_DESIGN.ARGS.DIRECTIVE=Explore` 后重跑（约 25 分钟），或改用 ex7 的独立 `build.tcl` 流程。
 
+---
+
+## 分支预测拓展（TEAM-BP-1.0）
+
+**状态：规格已接收（P0），代码未开始。本节不含任何仿真、综合、时序或线上结论。**
+
+### BP.0 C 的接收确认
+
+2026-10-31，C 阅读 `document/10-branch-prediction.md` 与 `document/branch-prediction-v1.json`（文档提交 `b3a57ae`），并对照固定基线 `757f51b` 的实际源码逐条核查后，**确认接收 `TEAM-BP-1.0` 接口与三人分工，未发现接口层冲突**。同节列出一项文档计数瑕疵与三项前置/风险，均不构成换接口的理由。
+
+**分支**：C 从 `b3a57ae` 建立 `integration-bp` 作为共同基线（与 `docs/branch-prediction-plan` 为同一提交，未额外产生合并节点）；`feat/bp-fetch` 从该提交建立。
+
+**C 的归属与交付**（依 10 文档第 6 节）：
+
+| 项 | 内容 |
+|---|---|
+| 文件归属 | `myCPU/IF_stage.v`、`myCPU/mycpu_top.v`、SoC 与 Vivado 工程、`tests/team/integration/`、本记录 |
+| 必须交付 | 预测器查询连接、请求与预测信息对齐、IF 纠错、`BP_ENABLE` 开关、完整回归、性能统计、bit 与时序报告 |
+| 新文件入工程 | `branch_predictor.v` 由 C 手工加入设计源与测试脚本，不能只在个人工程编译成功 |
+
+**不越界**：不实现 `branch_predictor`（A）；不改 `ID_stage.v`、`mycpu_head.v` 与流水线测试（B）；不代改预测器或 ID 的缺陷。发现问题按 01 流程提交最小复现、第一处差异与提交号，由模块负责人修复。
+
+### BP.1 规格论断与源码的核对（C 侧实证）
+
+| 规格论断 | 实际源码 | 判定 |
+|---|---|---|
+| `fs_to_ds_valid` 被 `!br_taken` 屏蔽，预测正确时必须调整 | `IF_stage.v:105-106`：`fs_valid && fs_ready_go && !br_taken && !pipe_flush` | 成立 |
+| `next_pc` 依 `br_taken` 选择地址 | `IF_stage.v:82`：`next_pc = br_taken ? br_target : seq_pc` | 成立 |
+| `br_taken` 由 `ds_ready_go && es_allowin` 限定 | `ID_stage.v:1127-1128`，另含 `ds_valid && !pipe_flush && !ds_exc[48]` | 成立；`!pipe_flush` 已存在，B 的纠正事件天然被全局冲刷屏蔽 |
+| `BR_BUS_WD=33` 保持不变、仅改语义 | `mycpu_head.v:5`；`IF_stage.v:61`：`{br_taken, br_target} = br_bus` | 成立 |
+| 保留总线位宽与基线一致 | `branch-prediction-v1.json` 的 `preserved_widths` 共 11 项，与 `mycpu_head.v` 逐项相符 | 成立 |
+
+### BP.2 C 侧改动方案（未实施）
+
+`myCPU/IF_stage.v` 五处：
+
+1. 新增端口 `bp_query_pc[31:0]`（输出）；`bp_query_hit`、`bp_predict_taken`、`bp_predict_target[31:0]`（输入）；`fs_to_ds_bp[33:0]`（输出）。
+2. `seq_pc` 由 `fs_pc + 32'd4` 改为已保存的后继游标 `bp_next_pc_r`，复位值 `32'h1c000000`（不复用复位伪 PC 推导起点）。
+3. `next_pc = bp_redirect_valid ? bp_redirect_pc : seq_pc`；原 `br_taken` 按其纠正语义使用，不再代表实际跳转事件。
+4. `fs_to_ds_valid` 中的 `!br_taken` 改为 `!bp_redirect_valid`。**此项为整个扩展的关键**：预测正确且实际跳转时，IF 指令必须照常送入 ID。
+5. 新增 `bp_hit_r`、`bp_taken_r`、`bp_next_pc_r`，在 `fetch_req || fetch_exc` 的上升沿锁存；`fs_to_ds_bp` 取寄存器值，不使用本拍实时查询输出；生成 ADEF 标记时强制 `{1'b0, 1'b0, fetch_addr + 4}`，且不清零目标低两位。
+
+`myCPU/mycpu_top.v`：新增参数 `BP_ENABLE=0` 只接预测器 `enable`；例化 `branch_predictor`；连接 68 位更新总线与 34 位预测信息；`fs_to_ds_bp` 由 IF 直连 ID。**外部引脚不变，`soc_lite_top.v` 无需改动。**
+
+**组合环检查**：`fetch_addr` 只由后继游标、已锁存的 WB 目标、本拍 ID 纠正三者决定；查表结果仅进入寄存器，不回灌当拍 `fetch_addr`。按现有结构推演，`fetch_addr → 查表 → fetch_addr` 不构成闭环。
+
+### BP.3 尚未满足的前置与风险
+
+| 项 | 说明 |
+|---|---|
+| `myCPU/branch_predictor.v` 尚不存在 | 顶层需例化 A 的模块，**A 交付前 `mycpu_top` 无法 elaborate**。C 的 IF 改造与模块级测试不依赖该文件，可先行；已向 A 请求先提交端口骨架以解除顶层阻塞 |
+| `feat/bp-predictor`、`feat/bp-pipeline` 未创建 | 远程目前仅有 `docs/branch-prediction-plan`，A/B 尚未开工 |
+| P3 时序风险 | `bp_redirect_pc` 为 ID 组合输出，直入 `inst_sram_addr`，在既有 `br_taken → next_pc` 路径上追加一次 32 位比较。当前基线 WNS 为 **−2.931 ns**，P3 结果预计更差；须按 10 文档 P3 如实采集，不与功能结论混同 |
+
+### BP.4 对 10 文档的一处计数修正建议
+
+10 文档第 8 节称"12 个保留总线宏与基线源码相符"。实际 `mycpu_head.v` 含 **12 个 `define`，其中 11 个为总线宏，另 1 个为 include guard `MYCPU_HEAD_H`**；`branch-prediction-v1.json` 的 `preserved_widths` 恰好列 11 项，与源码相符。故文档计数应改为 11。不阻塞实施，建议由文档负责人 B 修正措辞。
+
